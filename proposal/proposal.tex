@@ -4,7 +4,7 @@
 	Increase robustness of deep convolutional image classifier against adversarial examples \cite{advExamples} by augmenting the training set using interpolated images created by a Generative Adversarial Network (GAN) \cite{gan}.
 	
 	\section{Procedure}
-	First we randomly sample two images of a training dataset. Then find two latent vectors for which the generator of the GAN create images reasonably close to the 2 original images. We can then average those 2 latent vectors using different weights (such as 0.1 and 0.9) and feed that to the GAN to generate a new interpolated image. The label will be automatically generated using the weights. After training the classifier using this new data, we check if it is now more robust towards adversarial attacks. This is to some extent inspired by mixup \cite{mixup2}\cite{mixup1}.  
+	First we randomly sample two images of a training dataset and find the two latent vectors for which GAN's generator creates images reasonably close to the 2 original images. We can then average those 2 latent vectors using different weights (such as 0.1 and 0.9) and input that to the generator to generate a new interpolated image. The label will be automatically generated using the weights. After training the classifier using this new data, we check if it is now more robust towards adversarial attacks. This is to some extent inspired by mixup \cite{mixup2}\cite{mixup1}.  
 	
 	\section{Methods}
 	Finding corresponding latent vectors can be done using gradient descent with the image itself as target \cite{latentVector} or feature vectors extracted by a (pretrained) model \cite{ytLatentVector}. Latent Vectors could be cached for reuse.
@@ -17,6 +17,7 @@
 	\begin{itemize}
 		\item To get a baseline, we will first create a Convolutional Neural Network (CNN) and test how robust it is against adversarial attacks. We will then train a gan to augment our dataset to then train the before mentioned CNN using the augmented dataset and compare the two CNNs.
 		\item We will test if using a GAN augmented dataset improves robustness over the simple technique of blurring the two images into one.
+		\item We will test if using a VAE instead of a GAN improves results.
 		\item We will compare our method to some other adversarial training methods \cite{adv}\cite{gat}.
 		\item Besides comparing robustness, we will also test if this method improves the accuracy of the classifier.
 	\end{itemize}
