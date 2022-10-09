@@ -30,5 +30,18 @@ one_hot_labels[torch.arange(len(labels)), labels] = 1
 print(data.shape)
 print(one_hot_labels.shape)
 
-np.save("./datasets/mnist_orig.npy", data.numpy())
-np.save("./datasets/mnist_orig_labels.npy", one_hot_labels.numpy())
+np.save("./datasets/mnist/mnist.npy", data.numpy())
+np.save("./datasets/mnist/mnist_labels.npy", one_hot_labels.numpy())
+
+dataset = datasets.MNIST('../data', train=False, download=True)
+data = dataset.data
+labels = dataset.targets
+#convert labels to one-hot
+one_hot_labels = torch.zeros(len(labels), 10)
+one_hot_labels[torch.arange(len(labels)), labels] = 1
+
+print(data.shape)
+print(one_hot_labels.shape)
+
+np.save("./datasets/mnist/mnist_test.npy", data.numpy())
+np.save("./datasets/mnist/mnist_test_labels.npy", one_hot_labels.numpy())

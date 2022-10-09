@@ -9,8 +9,6 @@ from torchvision import datasets, transforms
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader
 import numpy as np
-from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import train_test_split
 from deepfool import deepfool
 
 
@@ -83,27 +81,33 @@ def test(model, device, test_loader):
 
 
 
-
 device = torch.device("cuda")
 torch.manual_seed(1)
 
+load = lambda x: np.load("../datasets/mnist/" + x + ".npy")
 
-x1,y1 = np.load("./datasets/mnist_orig.npy"),np.load("./datasets/mnist_orig_labels.npy")
-x2,y2 = np.load("./datasets/mixup.npy"),np.load("./datasets/mixup_labels.npy")
+x_test = load("mnist_test")
+y_test = load("mnist_test_labels")
+x_test = x_test/x_test.max()
+x_test = x_test.reshape(x_test.shape[0],1,28,28)
+x_test = torch.from_numpy(x_test).float()
+y_test = torch.from_numpy(y_test).float()
 
-datasets = (x1,y1),(x2,y2)
-for (x,y) in datasets:
+datasets = [(load("mnist"),load("mnist_labels")),(load("mixup"),load("mixup_labels"))]
+for (x_train, y_train) in datasets:
     print("next dataset")
-    # x = x[:batch_size*100]
-    # y = y[:batch_size*100]
-    x = x/x.max()
-    x = x.reshape(x.shape[0],1,28,28)
-    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=42)
+    # x_train = x_train[:batch_size*100]
+    # y_train = y_train[:batch_size*100]
+    # print(x_train.shape)
+    # print(x_test.shape)
+    # print(y_train.shape)
+    # print(y_test.shape)
+    x_train = x_train/x_train.max()
+    x_train = x_train.reshape(x_train.shape[0],1,28,28)
     #convert to torch tensors
     x_train = torch.from_numpy(x_train).float()
     y_train = torch.from_numpy(y_train).float()
-    x_test = torch.from_numpy(x_test).float()
-    y_test = torch.from_numpy(y_test).float()
+
     train_loader = DataLoader(torch.utils.data.TensorDataset(x_train,y_train), batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(torch.utils.data.TensorDataset(x_test,y_test), batch_size=batch_size, shuffle=True)
 
