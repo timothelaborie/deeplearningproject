@@ -4,3 +4,4 @@ mnist_data/**
 *.ipynb
 *.pyc
 deepfool/**
+trained_models/**
