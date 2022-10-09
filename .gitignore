@@ -1,3 +1,6 @@
 gancheckpoints/**
 data/**
 mnist_data/**
+*.ipynb
+*.pyc
+deepfool/**
