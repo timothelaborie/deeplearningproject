@@ -18,7 +18,7 @@ import numpy as np
 
 
 
-x = np.load("./datasets/mnist/mnist_test.npy")
+x = np.load("./datasets/mnist/test.npy")
 
 # blur the images using gaussian blur
 for i in range(x.shape[0]):
@@ -32,4 +32,4 @@ for i in range(x.shape[0]):
         # break
 
 #save the blurred images
-np.save("./datasets/mnist/mnist_test_blurred.npy", x)
+np.save("./datasets/mnist/test_blurred.npy", x)
