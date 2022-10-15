@@ -2,17 +2,29 @@
 
 ## files
 
-### dcgan.ipynb
+### datasets folder
+each dataset has its own folder, containing a bunch of .npy files:
+- train and train_labels: the original train set
+- test and test_labels: the original test set
+- mixup and mixup_labels: the train set, along with random pairs of interpolated images
+- test_blurred: blurred test images
+- vae_images and vae_latent: random images from the vae with their corresponding latent vector, used to train a model to retrieve the latent vector
+- vae and vae_labels: the train set, augmented by interpolated images from the VAE
+
+### dcgan.py and gan.py
 generates interpolated images using a gan.
 
-TODO: improve and fix the part that finds the latent vector
+### VAE.py
+generates interpolated images using a VAE.
 
-### cnn.ipynb
-classifies the dataset and obtains an accuracy score.
+### cnn.py and deepfool.py
+obtains an accuracy and robustness score for each of the various augmented datasets.
 
-TODO: setup some code so it runs on all the augmented datasets and prints the accuracy/robustness for each
+### dump_orig_datasets.py
+saves mnist, cifar-10 etc to a file so other data can be appended
 
-### gen_datasets.ipynb
-saves mnist to a file so other data can be appended, also interpolates images using mixup.
+### mixup.py
+interpolates images using mixup
 
-TODO: add the other 2 datasets
+### blurring.py
+blurs test images
