@@ -46,7 +46,6 @@ def train(model, device, train_loader, optimizer, epoch):
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
         output = model(data)
-        #use MultiLabelSoftMarginLoss
         loss = MultiLabelSoftMarginLoss()(output, target)
         loss.backward()
         optimizer.step()
@@ -86,19 +85,19 @@ torch.manual_seed(1)
 
 load = lambda x: np.load("./datasets/mnist/" + x + ".npy")
 
-x_test = load("mnist_test")
-y_test = load("mnist_test_labels")
+x_test = load("test")
+y_test = load("test_labels")
 x_test = x_test/x_test.max()
 x_test = x_test.reshape(x_test.shape[0],1,28,28)
 x_test = torch.from_numpy(x_test).float()
 y_test = torch.from_numpy(y_test).float()
 
-x_test_blurred = load("mnist_test_blurred")
+x_test_blurred = load("test_blurred")
 x_test_blurred = x_test_blurred/x_test_blurred.max()
 x_test_blurred = x_test_blurred.reshape(x_test_blurred.shape[0],1,28,28)
 x_test_blurred = torch.from_numpy(x_test_blurred).float()
 
-datasets = [(load("mnist"),load("mnist_labels")),(load("mixup"),load("mixup_labels"))]
+datasets = [(load("train"),load("train_labels")),(load("mixup"),load("mixup_labels")),(load("vae"),load("vae_labels"))]
 for (x_train, y_train) in datasets:
     print("next dataset")
     # x_train = x_train[:batch_size*100]
