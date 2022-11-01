@@ -3,13 +3,4 @@ data/**
 mnist_data/**
 *.ipynb
 *.pyc
-deepfool/**
-trained_models/**
-models/mnist_data/MNIST/raw/t10k-images-idx3-ubyte
-models/mnist_data/MNIST/raw/t10k-images-idx3-ubyte.gz
-models/mnist_data/MNIST/raw/t10k-labels-idx1-ubyte
-models/mnist_data/MNIST/raw/t10k-labels-idx1-ubyte.gz
-models/mnist_data/MNIST/raw/train-images-idx3-ubyte
-models/mnist_data/MNIST/raw/train-images-idx3-ubyte.gz
-models/mnist_data/MNIST/raw/train-labels-idx1-ubyte
-models/mnist_data/MNIST/raw/train-labels-idx1-ubyte.gz
+

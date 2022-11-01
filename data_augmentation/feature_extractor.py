@@ -59,7 +59,7 @@ def train(model, device, train_loader, optimizer, epoch):
 device = torch.device("cuda")
 torch.manual_seed(1)
 
-load = lambda x: np.load("../datasets/mnist/" + x + ".npy")
+load = lambda x: np.load("./datasets/mnist/" + x + ".npy")
 
 x_train = load("mnist")
 y_train = load("mnist_labels")

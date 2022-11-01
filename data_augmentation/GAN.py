@@ -15,48 +15,91 @@ import matplotlib.image as mpimg
 batch_size = 100
 latent_size = 20
 
+load = lambda x: np.load("./datasets/mnist/" + x + ".npy")
+X = load("train")
+y = load("train_labels")
+X = X/X.max()
+X = X.reshape(X.shape[0],1,28,28)
 
-# MNIST Dataset
-train_dataset = datasets.MNIST(root='./mnist_data/', train=True, transform=transforms.ToTensor(), download=True)
-test_dataset = datasets.MNIST(root='./mnist_data/', train=False, transform=transforms.ToTensor(), download=False)
+dataset = torch.utils.data.TensorDataset(torch.from_numpy(X).float(), torch.from_numpy(y).float())
 
-# Data Loader (Input Pipeline)
-train_loader = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
-test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False)
+train_loader = torch.utils.data.DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
 
-class VAE(nn.Module):
-    def __init__(self, x_dim, h_dim1, h_dim2, z_dim):
-        super(VAE, self).__init__()
+
+class Generator(nn.Module):
+    def __init__(self, args):
+        super().__init__()
+
+        self.args = args
+
+        ls = self.args.latent_size
         
-        # encoder part
-        self.fc1 = nn.Linear(x_dim, h_dim1)
-        self.fc2 = nn.Linear(h_dim1, h_dim2)
-        self.fc31 = nn.Linear(h_dim2, z_dim)
-        self.fc32 = nn.Linear(h_dim2, z_dim)
-        # decoder part
-        self.fc4 = nn.Linear(z_dim, h_dim2)
-        self.fc5 = nn.Linear(h_dim2, h_dim1)
-        self.fc6 = nn.Linear(h_dim1, x_dim)
-        
-    def encoder(self, x):
-        h = F.relu(self.fc1(x))
-        h = F.relu(self.fc2(h))
-        return self.fc31(h), self.fc32(h) # mu, log_var
-    
-    def sampling(self, mu, log_var):
-        std = torch.exp(0.5*log_var)
-        eps = torch.randn_like(std)
-        return eps.mul(std).add_(mu) # return z sample
-        
-    def decoder(self, z):
-        h = F.relu(self.fc4(z))
-        h = F.relu(self.fc5(h))
-        return F.sigmoid(self.fc6(h)) 
-    
+        self.seq = nn.Sequential(
+            nn.ConvTranspose2d(ls, int(ls/2), kernel_size=3, stride=2, padding=0, bias=False),
+            nn.BatchNorm2d(int(ls/2)),
+            nn.LeakyReLU(),
+            nn.ConvTranspose2d(int(ls/2), int(ls/4), kernel_size=3, stride=2, padding=1, bias=False),
+            nn.BatchNorm2d(int(ls/4)),
+            nn.LeakyReLU(),
+            nn.ConvTranspose2d(int(ls/4), int(ls/8), kernel_size=3, stride=2, padding=1, bias=False),
+            nn.BatchNorm2d(int(ls/8)),
+            nn.LeakyReLU(),
+            nn.ConvTranspose2d(int(ls/8), int(ls/16), kernel_size=3, stride=2, padding=1, bias=False),
+            nn.BatchNorm2d(int(ls/16)),
+            nn.LeakyReLU(),
+            nn.ConvTranspose2d(int(ls/16), 1, kernel_size=3, stride=2, padding=1, bias=True),
+            nn.Tanh()
+            )
+
     def forward(self, x):
-        mu, log_var = self.encoder(x.view(-1, 784))
-        z = self.sampling(mu, log_var)
-        return self.decoder(z), mu, log_var
+        x = self.seq(x)
+        x = x[:, :, 0:28, 0:28]
+        return x
+
+
+class Discriminator(nn.Module):
+    def __init__(self, args):
+        super().__init__()
+
+        self.args = args
+
+        ls = self.args.latent_size
+        
+        self.seq = nn.Sequential(
+            nn.Conv2d(1, int(ls/16), kernel_size=3, stride=2, padding=1, bias=False),
+            nn.BatchNorm2d(int(ls/16)),
+            nn.LeakyReLU(),
+            nn.Conv2d(int(ls/16), int(ls/8), kernel_size=3, stride=2, padding=1, bias=False),
+            nn.BatchNorm2d(int(ls/8)),
+            nn.LeakyReLU(),
+            nn.Conv2d(int(ls/8), int(ls/4), kernel_size=3, stride=2, padding=1, bias=False),
+            nn.BatchNorm2d(int(ls/4)),
+            nn.LeakyReLU(),
+            nn.Conv2d(int(ls/4), int(ls/2), kernel_size=3, stride=2, padding=1, bias=False),
+            nn.BatchNorm2d(int(ls/2)),
+            nn.LeakyReLU(),
+            nn.Conv2d(int(ls/2), 1,  kernel_size=3, stride=2, padding=1, bias=True),
+            nn.Sigmoid()
+            )
+
+    def forward(self, x):
+        x = self.seq(x)
+        return x
+
+
+
+#todo change the code below to work with the gan
+
+
+
+
+
+
+
+
+
+
+
 
 # build model
 vae = VAE(x_dim=784, h_dim1= 512, h_dim2=256, z_dim=latent_size)

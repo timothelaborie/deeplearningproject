@@ -1,45 +1,156 @@
-
+from __future__ import print_function
 import argparse
-
-import data
-import models.dcgan
-
 import torch
-
-model_dict = {
-    'dcgan5': models.dcgan.GAN5Conv
-}
-
-parser = argparse.ArgumentParser(description='latent mixup')
-# lines taken from https://github.com/yaohungt/Barlow-Twins-HSIC/blob/main/linear.py
-parser.add_argument('--vae', action='store_true', help='use vae instread of gan')
-parser.add_argument('--dp', type=str, default=None, help='discrimintaor checkpoint')
-parser.add_argument('--gp', type=str, default=None, help='generator checkpoint')
-parser.add_argument('--batch_size', default=128, type=int, help='batch size')
-parser.add_argument('--latent_size', default=1024, type=int, help='batch size')
-parser.add_argument('--model', type=str, choices=model_dict.keys(), default='dcgan5', help='choose model')
-parser.add_argument('--data', type=str, choices=['mnist'], default='mnist', help='choose which dataset shoudl be used')
-parser.add_argument('--epochs', default=50, type=int, help='number of epochs to train for')
-parser.add_argument('--beta1', default=0.5, type=float, help='beta1 of adam(w)')
-parser.add_argument('--beta2', default=0.999, type=float, help='beta2 of adam(w)')
-parser.add_argument('--lr', default=0.0003, type=float, help='learning rate of adam(w)')
-parser.add_argument('--weight_decay', default=0.0, type=float, help='adam weight decay')
-
-cuda_available = torch.cuda.is_available()
-
-device = torch.device('cuda' if cuda_available else 'cpu')
+import torch.nn as nn
+from torch.nn import MultiLabelSoftMarginLoss
+import torch.nn.functional as F
+import torch.optim as optim
+from torchvision import datasets, transforms
+from torch.optim.lr_scheduler import StepLR
+from torch.utils.data import DataLoader
+import numpy as np
+from deepfool import deepfool
 
 
-def main():
-    args = parser.parse_args()
-    print(args)
+batch_size=16
+lr = 0.001
 
-    model = model_dict[args.model](args, device)
+class Net(nn.Module):
+    def __init__(self):
+        super(Net, self).__init__()
+        self.conv1 = nn.Conv2d(1, 16, 3, 1)
+        self.conv2 = nn.Conv2d(16, 32, 3, 1)
+        self.dropout = nn.Dropout(0.5)
+        self.fc1 = nn.Linear(9216//2, 128)
+        self.fc2 = nn.Linear(128, 10)
+        self.softmax = nn.Softmax(dim=1)
 
-    train, val, test = data.get_data()
+    def forward(self, x):
+        x = self.conv1(x)
+        x = F.relu(x)
+        x = self.conv2(x)
+        x = F.relu(x)
+        x = F.max_pool2d(x, 2)
+        x = torch.flatten(x, 1)
+        x = self.fc1(x)
+        x = F.relu(x)
+        x = self.dropout(x)
+        x = self.fc2(x)
+        output = self.softmax(x)
+        return output
 
-    if args.dp is None:
-        model.train(train)
 
-if __name__ == '__main__':
-    main()
+def train(model, device, train_loader, optimizer, epoch):
+    model.train()
+    for batch_idx, (data, target) in enumerate(train_loader):
+        data, target = data.to(device), target.to(device)
+        optimizer.zero_grad()
+        output = model(data)
+        loss = MultiLabelSoftMarginLoss()(output, target)
+        loss.backward()
+        optimizer.step()
+        if batch_idx % 1000 == 0:
+            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+                epoch, batch_idx * len(data), len(train_loader.dataset),
+                100. * batch_idx / len(train_loader), loss.item()))
+
+
+
+def test(model, device, test_loader):
+    model.eval()
+    test_loss = 0
+    correct = 0
+    with torch.no_grad():
+        for data, target in test_loader:
+            data, target = data.to(device), target.to(device)
+            output = model(data)
+            # sum up batch loss
+            test_loss += MultiLabelSoftMarginLoss()(output, target).item()
+            # get the index of the max log-probability
+            pred = output.argmax(dim=1, keepdim=True)
+            # target is one-hot encoded, so argmax to get the index
+            target = target.argmax(dim=1, keepdim=True)
+            correct += pred.eq(target.view_as(pred)).sum().item()
+
+    test_loss /= len(test_loader.dataset)
+
+    print('Test set: Average loss: {:.4f}, Accuracy: {}/{} ({:.5f}%)'.format(
+        test_loss, correct, len(test_loader.dataset),
+        100. * correct / len(test_loader.dataset)))
+
+
+
+device = torch.device("cuda")
+torch.manual_seed(1)
+
+load = lambda x: np.load("./datasets/mnist/" + x + ".npy")
+
+x_test = load("test")
+y_test = load("test_labels")
+x_test = x_test/x_test.max()
+x_test = x_test.reshape(x_test.shape[0],1,28,28)
+x_test = torch.from_numpy(x_test).float()
+y_test = torch.from_numpy(y_test).float()
+
+x_test_blurred = load("test_blurred")
+x_test_blurred = x_test_blurred/x_test_blurred.max()
+x_test_blurred = x_test_blurred.reshape(x_test_blurred.shape[0],1,28,28)
+x_test_blurred = torch.from_numpy(x_test_blurred).float()
+
+datasets = [(load("train"),load("train_labels")),(load("mixup"),load("mixup_labels")),(load("vae"),load("vae_labels"))]
+for (x_train, y_train) in datasets:
+    print("next dataset")
+    # x_train = x_train[:batch_size*100]
+    # y_train = y_train[:batch_size*100]
+    # print(x_train.shape)
+    # print(x_test.shape)
+    # print(y_train.shape)
+    # print(y_test.shape)
+    x_train = x_train/x_train.max()
+    x_train = x_train.reshape(x_train.shape[0],1,28,28)
+    #convert to torch tensors
+    x_train = torch.from_numpy(x_train).float()
+    y_train = torch.from_numpy(y_train).float()
+
+    train_loader = DataLoader(torch.utils.data.TensorDataset(x_train,y_train), batch_size=batch_size, shuffle=True)
+    test_loader = DataLoader(torch.utils.data.TensorDataset(x_test,y_test), batch_size=batch_size, shuffle=True)
+
+    model = Net().to(device)
+    optimizer = optim.Adam(model.parameters(), lr=lr)
+
+    scheduler = StepLR(optimizer, step_size=1, gamma=0.7)
+    for epoch in range(1, 2):
+        train(model, device, train_loader, optimizer, epoch)
+        test(model, device, test_loader)
+        scheduler.step()
+
+    # to test adversarial robustness, we need to remove the softmax layer
+    model.softmax = nn.Identity()
+
+    # test the model on adversarial examples
+    norms = []
+    batches_done = 0
+    for batch_idx, (data, target) in enumerate(test_loader):
+        data, target = data.to(device), target.to(device)
+        for (image,target) in zip(data,target):
+            target = target.unsqueeze(0)
+            # generate adversarial examples
+            data = deepfool(image, model, num_classes=10, overshoot=0.02, max_iter=50)
+            minimal_perturbation = data[0]
+            # calculate the norm of the perturbation
+            norm = np.linalg.norm(minimal_perturbation)
+            # print(norm)
+            norms.append(norm)
+        batches_done += 1
+        if batches_done % 50 == 0:
+            break
+
+    print('Average norm of perturbation needed: {:.5f}'.format(np.mean(norms)))
+
+    # test the model on blurred images
+    test_loader = DataLoader(torch.utils.data.TensorDataset(x_test_blurred,y_test), batch_size=batch_size, shuffle=True)
+    test(model, device, test_loader)
+    
+
+
+
