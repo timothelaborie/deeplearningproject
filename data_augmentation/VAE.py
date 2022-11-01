@@ -113,8 +113,8 @@ def test():
     test_loss /= len(test_loader.dataset)
     print('====> Test set loss: {:.4f}'.format(test_loss))
 
-# retrain = True
-retrain = False
+retrain = True
+# retrain = False
 
 if retrain:
     for epoch in range(1, 51):
@@ -150,9 +150,9 @@ with torch.no_grad():
     y = np.concatenate(y, axis=0)
 
 print(X.shape, y.shape)
-X = np.array(X, dtype=np.uint8)
-np.save('./datasets/mnist/vae_images.npy', X)
-np.save('./datasets/mnist/vae_latent.npy', y)
+# X = np.array(X, dtype=np.uint8)
+# np.save('./datasets/mnist/vae_images.npy', X)
+# np.save('./datasets/mnist/vae_latent.npy', y)
 
 
 #train a model to find the nearest latent vector to a given image
@@ -198,10 +198,10 @@ def train(model, device, train_loader, optimizer, epoch):
 
 
 #load data
-X = np.load('./datasets/mnist/vae_images.npy')
-y = np.load('./datasets/mnist/vae_latent.npy')
+# X = np.load('./datasets/mnist/vae_images.npy')
+# y = np.load('./datasets/mnist/vae_latent.npy')
 
-X = X/X.max()
+# X = X/X.max()
 
 X = torch.from_numpy(X).float()
 y = torch.from_numpy(y).float()
@@ -210,8 +210,8 @@ train_loader = DataLoader(torch.utils.data.TensorDataset(X,y), batch_size=batch_
 model = Net().cuda()
 
 #train the model
-# retrain = True
-retrain = False
+retrain = True
+# retrain = False
 
 if retrain:
     optimizer = optim.Adam(model.parameters(), lr=lr)
