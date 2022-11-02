@@ -12,11 +12,17 @@ from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 
+
+dataset_name = "mnist"
+dataset_name = "cifar10"
+dataset_name = "fashionmnist"
+
+
 batch_size = 100
 latent_size = 20
+epochs = 3
 
-
-load = lambda x: np.load("./datasets/mnist/" + x + ".npy")
+load = lambda x: np.load("./datasets/" + dataset_name + "/" + x + ".npy")
 X_train = load("train")
 y_train = load("train_labels")
 max = X_train.max()
@@ -117,14 +123,14 @@ retrain = True
 # retrain = False
 
 if retrain:
-    for epoch in range(1, 51):
+    for epoch in range(1, epochs):
         train(epoch)
         test()
     # save the model
-    torch.save(vae.state_dict(), './trained_models/vae.pth')
+    torch.save(vae.state_dict(), "./trained_models/vae_" + dataset_name + ".pth")
 
 else:
-    vae.load_state_dict(torch.load('./trained_models/vae.pth'))
+    vae.load_state_dict(torch.load("./trained_models/vae_" + dataset_name + ".pth"))
 
 
 
@@ -132,7 +138,7 @@ else:
 with torch.no_grad():
     z = torch.randn(64, latent_size).cuda()
     sample = vae.decoder(z).cuda()
-    save_image(sample.view(64, 1, 28, 28), './samples/sample_' + '.png')
+    save_image(sample.view(64, 1, 28, 28), "./samples/sample_" + dataset_name + ".png")
 
 # generate batches of images with their corresponding latent vectors as the labels
 # if not exists("./datasets/mnist/vae_images.npy"):
@@ -216,14 +222,14 @@ retrain = True
 if retrain:
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
-    for epoch in range(1, 51):
+    for epoch in range(1, epochs):
         train(model, 'cuda', train_loader, optimizer, epoch)
 
     #save the model
-    torch.save(model.state_dict(), './trained_models/vae_finder.pth')
+    torch.save(model.state_dict(), "./trained_models/vae_finder_" + dataset_name + ".pth")
 
 else:
-    model.load_state_dict(torch.load('./trained_models/vae_finder.pth'))
+    model.load_state_dict(torch.load("./trained_models/vae_finder_" + dataset_name + ".pth"))
 
 
 
@@ -235,7 +241,7 @@ else:
 mse = []
 
 #generate a random image and find the nearest latent vector
-feature_extractor = torch.load('./trained_models/feature_extractor_mnist.pt').cuda()
+feature_extractor = torch.load("./trained_models/feature_extractor_" + dataset_name + ".pt").cuda()
 for i in range(10):
     z = torch.randn(1, latent_size).cuda()
     original = vae.decoder(z).cuda().view(1, 1, 28, 28)
@@ -275,7 +281,7 @@ print("mean:",np.mean(mse))
 
 #generate new training data
 print("generating new training data")
-x,y = np.load("./datasets/mnist/train.npy"), np.load("./datasets/mnist/train_labels.npy")
+x,y = np.load("./datasets/" + dataset_name + "/train.npy"), np.load("./datasets/" + dataset_name + "/train_labels.npy")
 print(x.shape)
 print(y.shape)
 generated_images = []
@@ -341,5 +347,5 @@ print(x.shape, y.shape)
 
 #save the new training data
 x = np.array(x, dtype=np.uint8)
-np.save("./datasets/mnist/vae.npy", x)
-np.save("./datasets/mnist/vae_labels.npy", y)
+np.save("./datasets/" + dataset_name + "/vae.npy", x)
+np.save("./datasets/" + dataset_name + "/vae_labels.npy", y)

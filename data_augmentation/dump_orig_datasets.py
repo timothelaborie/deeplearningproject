@@ -20,28 +20,27 @@ import numpy as np
 import tqdm
 
 
-dataset = datasets.MNIST('../data', train=True, download=True)
-data = dataset.data
-labels = dataset.targets
-#convert labels to one-hot
-one_hot_labels = torch.zeros(len(labels), 10)
-one_hot_labels[torch.arange(len(labels)), labels] = 1
+sets = []
+sets.append(("train","mnist",datasets.MNIST('./data', train=True, download=True)))
+sets.append(("test","mnist",datasets.MNIST('./data', train=False, download=True)))
 
-print(data.shape)
-print(one_hot_labels.shape)
+sets.append(("train","cifar10",datasets.CIFAR10('./data', train=True, download=True)))
+sets.append(("test","cifar10",datasets.CIFAR10('./data', train=False, download=True)))
 
-np.save("./datasets/mnist/train.npy", data.numpy())
-np.save("./datasets/mnist/train_labels.npy", one_hot_labels.numpy())
+sets.append(("train","fashionmnist",datasets.FashionMNIST('./data', train=True, download=True)))
+sets.append(("test","fashionmnist",datasets.FashionMNIST('./data', train=False, download=True)))
 
-dataset = datasets.MNIST('../data', train=False, download=True)
-data = dataset.data
-labels = dataset.targets
-#convert labels to one-hot
-one_hot_labels = torch.zeros(len(labels), 10)
-one_hot_labels[torch.arange(len(labels)), labels] = 1
+for (split, name, dataset) in sets:
 
-print(data.shape)
-print(one_hot_labels.shape)
+    data = np.array(dataset.data)
+    labels = np.array(dataset.targets)
+    #convert labels to one-hot
+    one_hot_labels = np.zeros((labels.size, labels.max()+1))
+    one_hot_labels[np.arange(labels.size),labels] = 1
 
-np.save("./datasets/mnist/test.npy", data.numpy())
-np.save("./datasets/mnist/test_labels.npy", one_hot_labels.numpy())
+    print(name, split, data.shape,labels.shape, one_hot_labels.shape)
+
+    np.save("./datasets/" + name + "/" + split + ".npy", data)
+    np.save("./datasets/" + name + "/" + split + "_labels.npy", one_hot_labels)
+
+

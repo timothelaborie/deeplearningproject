@@ -1,7 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-x,y = np.load("./datasets/mnist/mnist.npy"), np.load("./datasets/mnist/mnist_labels.npy")
+
+dataset_name = "mnist"
+dataset_name = "cifar10"
+dataset_name = "fashionmnist"
+
+x,y = np.load("./datasets/" + dataset_name + "/train.npy"), np.load("./datasets/" + dataset_name + "/train_labels.npy")
 print(x.shape)
 print(y.shape)
 
@@ -50,5 +55,5 @@ print(y.shape)
 # print(x[70000])
 # print(y[70000])
 #save the generated images and labels
-np.save("./datasets/mnist/mixup.npy", x)
-np.save("./datasets/mnist/mixup_labels.npy", y)
+np.save("./datasets/" + dataset_name + "/mixup.npy", x)
+np.save("./datasets/" + dataset_name + "/mixup_labels.npy", y)

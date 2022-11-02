@@ -4,3 +4,5 @@ mnist_data/**
 *.ipynb
 *.pyc
 
+datasets/cifar10/train.npy
+datasets/cifar10/mixup.npy

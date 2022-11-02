@@ -16,9 +16,11 @@ import matplotlib.image as mpimg
 
 import numpy as np
 
+# dataset_name = "mnist"
+dataset_name = "cifar10"
+# dataset_name = "fashionmnist"
 
-
-x = np.load("./datasets/mnist/test.npy")
+x = np.load("./datasets/" + dataset_name + "/test.npy")
 
 # blur the images using gaussian blur
 for i in range(x.shape[0]):
@@ -32,4 +34,4 @@ for i in range(x.shape[0]):
         # break
 
 #save the blurred images
-np.save("./datasets/mnist/test_blurred.npy", x)
+np.save("./datasets/" + dataset_name + "/test_blurred.npy", x)

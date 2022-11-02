@@ -9,8 +9,12 @@ from torchvision import datasets, transforms
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader
 import numpy as np
-from deepfool import deepfool
+# from deepfool import deepfool
 
+
+dataset_name = "mnist"
+dataset_name = "cifar10"
+dataset_name = "fashionmnist"
 
 batch_size=16
 lr = 0.001
@@ -59,10 +63,10 @@ def train(model, device, train_loader, optimizer, epoch):
 device = torch.device("cuda")
 torch.manual_seed(1)
 
-load = lambda x: np.load("./datasets/mnist/" + x + ".npy")
+load = lambda x: np.load("./datasets/" + dataset_name + "/" + x + ".npy")
 
-x_train = load("mnist")
-y_train = load("mnist_labels")
+x_train = load("train")
+y_train = load("train_labels")
 x_train = x_train/x_train.max()
 x_train = x_train.reshape(x_train.shape[0],1,28,28)
 x_train = torch.from_numpy(x_train).float()
@@ -88,4 +92,4 @@ model.fc2 = nn.Identity()
 model = model.cpu()
 
 #save the model
-torch.save(model, "./feature_extractor.pt")
+torch.save(model, "./trained_models/feature_extractor_" + dataset_name + ".pt")
