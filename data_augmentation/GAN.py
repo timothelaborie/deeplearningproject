@@ -12,10 +12,20 @@ from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 
+
+
+dataset_name = "mnist"
+dataset_name = "cifar10"
+dataset_name = "fashionmnist"
+
+
+
+
+
 batch_size = 100
 latent_size = 20
 
-load = lambda x: np.load("./datasets/mnist/" + x + ".npy")
+load = lambda x: np.load("./datasets/" + dataset_name + "/" + x + ".npy")
 X = load("train")
 y = load("train_labels")
 X = X/X.max()
@@ -147,18 +157,18 @@ def test():
     test_loss /= len(test_loader.dataset)
     print('====> Test set loss: {:.4f}'.format(test_loss))
 
-# retrain = True
-retrain = False
+retrain = True
+# retrain = False
 
 if retrain:
-    for epoch in range(1, 51):
+    for epoch in range(1, epochs):
         train(epoch)
         test()
     # save the model
-    torch.save(vae.state_dict(), './models/vae.pth')
+    torch.save(vae.state_dict(), "./trained_models/vae_" + dataset_name + ".pth")
 
 else:
-    vae.load_state_dict(torch.load('./models/vae.pth'))
+    vae.load_state_dict(torch.load("./trained_models/vae_" + dataset_name + ".pth"))
 
 
 
@@ -166,7 +176,7 @@ else:
 with torch.no_grad():
     z = torch.randn(64, latent_size).cuda()
     sample = vae.decoder(z).cuda()
-    save_image(sample.view(64, 1, 28, 28), './models/sample_' + '.png')
+    save_image(sample.view(64, 1, 28, 28), "./samples/sample_" + dataset_name + ".png")
 
 # generate batches of images with their corresponding latent vectors as the labels
 # if not exists("./datasets/mnist/vae_images.npy"):
@@ -184,9 +194,9 @@ with torch.no_grad():
     y = np.concatenate(y, axis=0)
 
 print(X.shape, y.shape)
-X = np.array(X, dtype=np.uint8)
-np.save('./datasets/mnist/vae_images.npy', X)
-np.save('./datasets/mnist/vae_latent.npy', y)
+# X = np.array(X, dtype=np.uint8)
+# np.save('./datasets/mnist/vae_images.npy', X)
+# np.save('./datasets/mnist/vae_latent.npy', y)
 
 
 #train a model to find the nearest latent vector to a given image
@@ -232,10 +242,10 @@ def train(model, device, train_loader, optimizer, epoch):
 
 
 #load data
-X = np.load('./datasets/mnist/vae_images.npy')
-y = np.load('./datasets/mnist/vae_latent.npy')
+# X = np.load('./datasets/mnist/vae_images.npy')
+# y = np.load('./datasets/mnist/vae_latent.npy')
 
-X = X/X.max()
+# X = X/X.max()
 
 X = torch.from_numpy(X).float()
 y = torch.from_numpy(y).float()
@@ -244,20 +254,20 @@ train_loader = DataLoader(torch.utils.data.TensorDataset(X,y), batch_size=batch_
 model = Net().cuda()
 
 #train the model
-# retrain = True
-retrain = False
+retrain = True
+# retrain = False
 
 if retrain:
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
-    for epoch in range(1, 51):
+    for epoch in range(1, epochs):
         train(model, 'cuda', train_loader, optimizer, epoch)
 
     #save the model
-    torch.save(model.state_dict(), './models/vae_finder.pth')
+    torch.save(model.state_dict(), "./trained_models/vae_finder_" + dataset_name + ".pth")
 
 else:
-    model.load_state_dict(torch.load('./models/vae_finder.pth'))
+    model.load_state_dict(torch.load("./trained_models/vae_finder_" + dataset_name + ".pth"))
 
 
 
@@ -269,7 +279,7 @@ else:
 mse = []
 
 #generate a random image and find the nearest latent vector
-feature_extractor = torch.load('./models/feature_extractor_mnist.pt').cuda()
+feature_extractor = torch.load("./trained_models/feature_extractor_" + dataset_name + ".pt").cuda()
 for i in range(10):
     z = torch.randn(1, latent_size).cuda()
     original = vae.decoder(z).cuda().view(1, 1, 28, 28)
@@ -309,7 +319,7 @@ print("mean:",np.mean(mse))
 
 #generate new training data
 print("generating new training data")
-x,y = np.load("./datasets/mnist/train.npy"), np.load("./datasets/mnist/train_labels.npy")
+x,y = np.load("./datasets/" + dataset_name + "/train.npy"), np.load("./datasets/" + dataset_name + "/train_labels.npy")
 print(x.shape)
 print(y.shape)
 generated_images = []
@@ -375,5 +385,5 @@ print(x.shape, y.shape)
 
 #save the new training data
 x = np.array(x, dtype=np.uint8)
-np.save("./datasets/mnist/vae.npy", x)
-np.save("./datasets/mnist/vae_labels.npy", y)
+np.save("./datasets/" + dataset_name + "/vae.npy", x)
+np.save("./datasets/" + dataset_name + "/vae_labels.npy", y)
