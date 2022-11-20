@@ -5,9 +5,9 @@ import torch.nn.functional as F
 
 def get_model(dataset_name):
     if dataset_name.endswith("mnist"):
-        return MnistNet
+        return MnistNet, {}
     else:  # dataset_name.startswith("cifar")
-        return CifarNet
+        return CifarNet, {"n_out": (10 if dataset_name.endswith("10") else 100)}
 
 
 class MnistNet(nn.Module):
@@ -37,7 +37,7 @@ class MnistNet(nn.Module):
 
 # Source : https://shonit2096.medium.com/cnn-on-cifar10-data-set-using-pytorch-34be87e09844
 class CifarNet(nn.Module):
-    def __init__(self):
+    def __init__(self, n_out):
         super(CifarNet, self).__init__()
         self.conv_layer = nn.Sequential(
             # Conv Layer block 1
@@ -71,7 +71,7 @@ class CifarNet(nn.Module):
             nn.Linear(1024, 512),
             nn.ReLU(inplace=True),
             nn.Dropout(p=0.1),
-            nn.Linear(512, 10)
+            nn.Linear(512, n_out)
         )
 
     def forward(self, x):
