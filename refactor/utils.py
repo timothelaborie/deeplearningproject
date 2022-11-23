@@ -1,13 +1,22 @@
 import os
 import sys
 import time
-
 import numpy as np
 import torch
 import csv
 
-from PIL import Image, ImageDraw
-from matplotlib import pyplot as plt
+
+def mixup_data(x, y, device, alpha=1.0):
+    lam = np.random.beta(alpha, alpha) if alpha > 0 else 1
+    batch_size = x.size()[0]
+    index = torch.randperm(batch_size).to(device)
+    mixed_x = lam * x + (1 - lam) * x[index, :]
+    y_a, y_b = y, y[index]
+    return mixed_x, y_a, y_b, lam
+
+
+def mixup_criterion(criterion, pred, y_a, y_b, lam):
+    return lam * criterion(pred, y_a) + (1 - lam) * criterion(pred, y_b)
 
 
 def show_cuda_info():
@@ -130,3 +139,49 @@ def mask_dict(initial_dict, keys):
 
 def hyperparameter_to_name(hyperparameters):
     return "&".join(sorted(["{}:{}".format(k, hyperparameters[k]) for k in hyperparameters]))
+
+
+def report_results():
+    print("Showing the results stored on disk")
+    for dataset in ["mnist", "fashionmnist", "cifar10", "cifar100"]:
+        for variant in ["standard", "mixup", "manifold_mixup", "vae"]:
+            runs = []
+            dir_name = "./results/{}/{}".format(dataset, variant)
+            if dir_exists(dir_name):
+                dir_list = os.listdir(dir_name)
+                if len(dir_list) > 0:
+                    print("\n---Results for dataset {} and variant {}---".format(dataset, variant))
+                for result_file in dir_list:
+                    with open("{}/{}".format(dir_name, result_file), newline='') as csvfile:
+                        report = {}
+                        line = 0
+                        for row in csv.reader(csvfile):
+                            if line > 0:
+                                report[row[0]] = [float(f) for f in row[1:]]
+                            line += 1
+                        runs.append((result_file, report))
+            runs = sorted(runs, key=lambda r: -r[1]["val"][0])  # Sort with respect to the validation accuracy
+            for index, run in enumerate(runs):
+                print("Rank {}".format(index))
+                print("\tParameters : {}".format(run[0][:-4].replace("&", ", ").replace(":", ": ")))
+                for k in run[1]:
+                    print("\t{} : accuracy : {:.3f}, loss : {:.3f}, DeepFool score : {:.3f}".format(k.replace("_", " ").capitalize(), run[1][k][0], run[1][k][1], run[1][k][2]))
+
+
+'''
+# Check some sample to validate the VAE or GAN
+with torch.no_grad():
+    z = torch.randn(64, relevant_hyperparameters["vae_z_dim"]).cuda()
+    sample = vae_model.decoder(z).cuda()
+    save_image(sample.view(64, DATASET_IMAGE_CHN[dataset_name], DATASET_IMAGE_DIM[dataset_name], DATASET_IMAGE_DIM[dataset_name]), "./sample_vae_" + dataset_name + ".png")
+
+for batch_idx, (data, target) in enumerate(train_loader):
+    if batch_idx > 0:
+        break
+    data, target = data.to(device), target.to(device)
+    flat_data = data.view(-1, vae_model.x_dim)
+    latent_codes = vae_model.encoder(flat_data)[0]# .cpu().detach().numpy()
+    new_images = vae_model.decoder(latent_codes)
+    #save_image(data.view(16, DATASET_IMAGE_CHN[dataset_name], DATASET_IMAGE_DIM[dataset_name], DATASET_IMAGE_DIM[dataset_name]), "./sample_ori_{}.png".format(batch_idx))
+    #save_image(new_images.view(16, DATASET_IMAGE_CHN[dataset_name], DATASET_IMAGE_DIM[dataset_name], DATASET_IMAGE_DIM[dataset_name]), "./sample_gen_{}.png".format(batch_idx))
+'''
