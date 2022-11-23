@@ -3,7 +3,6 @@ import numpy as np
 from torch.autograd import Variable
 import torch as torch
 import copy
-# from torch.autograd.gradcheck import zero_gradients
 
 
 def zero_gradients(x):
