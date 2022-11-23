@@ -3,7 +3,6 @@ from torch.utils.data import DataLoader
 import torch
 from torchvision import datasets
 import numpy as np
-
 from utils import create_directory, dir_exists
 
 DATASET_IMAGE_DIM = {"mnist":  28, "fashionmnist": 28, "cifar10": 32, "cifar100": 32}
