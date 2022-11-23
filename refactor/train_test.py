@@ -5,36 +5,45 @@ from torch.nn import MultiLabelSoftMarginLoss
 import torch
 import torch.nn as nn
 from torch.optim.lr_scheduler import StepLR
-
 from data import DATASET_IMAGE_CHN, DATASET_IMAGE_DIM
 from deepfool import deepfool
-from utils import progress_bar
+from utils import progress_bar, mixup_criterion, mixup_data
 from model import vae_loss_function
 
 
-def mixup_data(x, y, device, alpha=1.0):
-    lam = np.random.beta(alpha, alpha) if alpha > 0 else 1
-    batch_size = x.size()[0]
-    index = torch.randperm(batch_size).to(device)
-    mixed_x = lam * x + (1 - lam) * x[index, :]
-    y_a, y_b = y, y[index]
-    return mixed_x, y_a, y_b, lam
-
-
-def mixup_criterion(criterion, pred, y_a, y_b, lam):
-    return lam * criterion(pred, y_a) + (1 - lam) * criterion(pred, y_b)
-
-
-def train(model, device, train_loader, optimizer, specificity="", vae_model=None, hyperparameters=None):
+def train(model, device, train_loader, dataset_name, optimizer, specificity="", vae_model=None, hyperparameters=None):
     model.train()
-    dataset_name = hyperparameters["dataset"]
     train_loss = 0
     correct = 0
     total = 0
     for batch_idx, (data, target) in enumerate(train_loader):
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
-        if specificity == "mixup_vae":
+        if specificity == "":
+            # Standard training
+            output = model(data)
+            loss = MultiLabelSoftMarginLoss()(output, target)
+            loss.backward()
+            optimizer.step()
+            train_loss += loss.item()
+            predictions = output.argmax(dim=1, keepdim=True)
+            correct += predictions.eq(target.argmax(dim=1, keepdim=True).view_as(predictions)).sum().item()
+            total += target.size(0)
+        elif specificity in ["mixup", "manifold_mixup"]:
+            # Mixup on intermediate representation (initial mixup is a special case)
+            layer_mix = 0 if specificity == "mixup" else None
+            outputs, targets_a, targets_b, lam = model(data, target=target, mixup_hidden=True, layer_mix=layer_mix)
+            loss = mixup_criterion(MultiLabelSoftMarginLoss(), outputs, targets_a, targets_b, lam)
+            loss.backward()
+            optimizer.step()
+            train_loss += loss.item()
+            _, predicted = torch.max(outputs.data, 1)
+            total += target.size(0)
+            _, targets_a = torch.max(targets_a, 1)
+            _, targets_b = torch.max(targets_b, 1)
+            correct += (lam * predicted.eq(targets_a.data).cpu().sum().float() + (1 - lam) * predicted.eq(targets_b.data).cpu().sum().float())
+        elif specificity == "mixup_vae":
+            # Mixup on the latent codes
             assert vae_model is not None, "No VAE model has been provided"
             inputs, targets_a, targets_b, lam = mixup_data(data, target, device=device, alpha=1.0)
             inputs, targets_a, targets_b = map(Variable, (inputs, targets_a, targets_b))
@@ -49,29 +58,6 @@ def train(model, device, train_loader, optimizer, specificity="", vae_model=None
             _, targets_a = torch.max(targets_a, 1)
             _, targets_b = torch.max(targets_b, 1)
             correct += (lam * predicted.eq(targets_a.data).cpu().sum().float() + (1 - lam) * predicted.eq(targets_b.data).cpu().sum().float())
-        elif specificity == "mixup":
-            # Source : https://github.com/facebookresearch/mixup-cifar10
-            inputs, targets_a, targets_b, lam = mixup_data(data, target, device=device, alpha=1.0)
-            inputs, targets_a, targets_b = map(Variable, (inputs, targets_a, targets_b))
-            outputs = model(inputs)
-            loss = mixup_criterion(MultiLabelSoftMarginLoss(), outputs, targets_a, targets_b, lam)
-            loss.backward()
-            optimizer.step()
-            train_loss += loss.item()
-            _, predicted = torch.max(outputs.data, 1)
-            total += target.size(0)
-            _, targets_a = torch.max(targets_a, 1)
-            _, targets_b = torch.max(targets_b, 1)
-            correct += (lam * predicted.eq(targets_a.data).cpu().sum().float() + (1 - lam) * predicted.eq(targets_b.data).cpu().sum().float())
-        elif specificity == "":
-            output = model(data)
-            loss = MultiLabelSoftMarginLoss()(output, target)
-            loss.backward()
-            optimizer.step()
-            train_loss += loss.item()
-            predictions = output.argmax(dim=1, keepdim=True)
-            correct += predictions.eq(target.argmax(dim=1, keepdim=True).view_as(predictions)).sum().item()
-            total += target.size(0)
         else:
             assert False, "Unknown specificity {}".format(specificity)
         progress_bar(batch_idx, len(train_loader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)' % (train_loss / total, 100. * correct / total, correct, total))
@@ -96,13 +82,13 @@ def evaluate(model, device, data_loader, verbose=True):
     return correct / total, loss / total
 
 
-def full_training(model, train_loader, val_loader, hyperparameters, device, specificity="", vae_model=None):
+def full_training(model, train_loader, val_loader, dataset_name, hyperparameters, device, specificity="", vae_model=None):
     optimizer = optim.Adam(model.parameters(), lr=hyperparameters["learning_rate"])
     scheduler = StepLR(optimizer, step_size=1, gamma=0.7)
     for epoch in range(hyperparameters["epochs"]):
         print("Epoch {}/{}".format(epoch, hyperparameters["epochs"]))
         print("Training ...")
-        train(model, device, train_loader, optimizer, specificity=specificity, vae_model=vae_model, hyperparameters=hyperparameters)
+        train(model, device, train_loader, dataset_name, optimizer, specificity=specificity, vae_model=vae_model, hyperparameters=hyperparameters)
         print("Evaluation on the validation set ...")
         evaluate(model, device, val_loader)
         scheduler.step()
