@@ -1,7 +1,7 @@
-
 data/**
 datasets/**
 augmented_datasets/**
+models/**
 *.ipynb
 *.pyc
 
