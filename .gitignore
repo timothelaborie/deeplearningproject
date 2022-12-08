@@ -1,8 +1,8 @@
-gancheckpoints/**
+
 data/**
-mnist_data/**
+datasets/**
+augmented_datasets/**
 *.ipynb
 *.pyc
 
-datasets/cifar10/train.npy
-datasets/cifar10/mixup.npy
+
