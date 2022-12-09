@@ -1,5 +1,4 @@
 import random
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -30,7 +29,6 @@ class MnistNet(nn.Module):
         self.fc1 = nn.Linear(9216 // 2, 128)
         self.fc2 = nn.Linear(128, 10)
         self.softmax = nn.Softmax(dim=1)
-
         self.device = device
 
     def forward(self, x, target=None, mixup_hidden=False, mixup_alpha=1.0, layer_mix=None):
