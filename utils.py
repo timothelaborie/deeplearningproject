@@ -2,8 +2,27 @@ import os
 import sys
 import time
 import numpy as np
-import torch
 import csv
+import torch
+from torch.utils.data import DataLoader
+from torchvision import datasets, transforms
+
+DATASET_IMAGE_DIM = {"mnist":  28, "fashionmnist": 28, "cifar10": 32, "cifar100": 32}
+DATASET_IMAGE_CHN = {"mnist":  1, "fashionmnist": 1, "cifar10": 3, "cifar100": 3}
+DATASETS_CALLS = {"mnist": datasets.MNIST, "fashionmnist": datasets.FashionMNIST, "cifar10": datasets.CIFAR10, "cifar100": datasets.CIFAR100}
+DATASETS_TRAIN_SPLITS = {"mnist": [50000, 10000], "fashionmnist": [50000, 10000], "cifar10": [40000, 10000], "cifar100": [40000, 10000]}
+
+
+def get_dataset(dataset_name, blur=False):
+    transformations = [transforms.ToTensor()]
+    if dataset_name.startswith("cifar"):
+        transformations.append(transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)))
+    if blur:
+        transformations.append(transforms.GaussianBlur(5, 5))
+    train = DATASETS_CALLS[dataset_name]('./data', train=True, download=True, transform=transforms.Compose(transformations))
+    test = DATASETS_CALLS[dataset_name]('./data', train=False, download=True, transform=transforms.Compose(transformations))
+    train, val = torch.utils.data.random_split(train, DATASETS_TRAIN_SPLITS[dataset_name])
+    return train, val, test
 
 
 def mixup_data(x, y, device, alpha=1.0):
@@ -15,8 +34,8 @@ def mixup_data(x, y, device, alpha=1.0):
     return mixed_x, y_a, y_b, lam
 
 
-def mixup_criterion(criterion, pred, y_a, y_b, lam):
-    return lam * criterion(pred, y_a) + (1 - lam) * criterion(pred, y_b)
+def mixup_criterion(criterion, prediction, y_a, y_b, lam):
+    return lam * criterion(prediction, y_a) + (1 - lam) * criterion(prediction, y_b)
 
 
 def show_cuda_info():
@@ -134,13 +153,13 @@ def mask_dict(initial_dict, keys):
 
 
 def hyperparameter_to_name(hyperparameters):
-    return "&".join(sorted(["{}_{}".format(k, hyperparameters[k]) for k in hyperparameters]))
+    return "&".join(sorted(["{}:{}".format(k, hyperparameters[k]) for k in hyperparameters]))
 
 
 def report_results():
     print("Showing the results stored on disk")
     for dataset in ["mnist", "fashionmnist", "cifar10", "cifar100"]:
-        for variant in ["standard", "mixup", "manifold_mixup", "vae"]:
+        for variant in ["standard", "mixup", "manifold_mixup", "vae", "gan"]:
             dir_name = "./results/{}/{}".format(dataset, variant)
             if dir_exists(dir_name):
                 dir_list = os.listdir(dir_name)
@@ -176,6 +195,7 @@ def report_results():
                         for j, metric in enumerate(["accuracy", "loss", "DeepFool score"]):
                             print("\t{} {} : {:.3f} (+/- {:.3f})".format(split, metric, report[2][i, j], report[3][i, j]))
 
+
 '''
 # Check some sample to validate the VAE or GAN
 with torch.no_grad():
@@ -192,4 +212,44 @@ for batch_idx, (data, target) in enumerate(train_loader):
     new_images = vae_model.decoder(latent_codes)
     #save_image(data.view(16, DATASET_IMAGE_CHN[dataset_name], DATASET_IMAGE_DIM[dataset_name], DATASET_IMAGE_DIM[dataset_name]), "./sample_ori_{}.png".format(batch_idx))
     #save_image(new_images.view(16, DATASET_IMAGE_CHN[dataset_name], DATASET_IMAGE_DIM[dataset_name], DATASET_IMAGE_DIM[dataset_name]), "./sample_gen_{}.png".format(batch_idx))
+'''
+
+'''
+
+# Saves the images with the old version of the dataset using the matplotlib library and not saveimage
+dataset_name = "cifar10"
+download_dataset(dataset_name)
+blur_images(dataset_name)
+
+file = np.load("./datasets/cifar10/train_features.npy")
+print(file.shape)
+#for i in range(10):
+#    x = file[i]
+#    x = np.moveaxis(x, -1, 0)
+#    x = np.moveaxis(x, 0, -1)
+#    print("Original shape {}".format(x.shape))
+#    plt.subplot(2, 5, i+1)
+#    plt.imshow(x)
+#    plt.axis('off')
+# plt.show()
+#for i in range(10):
+#    plt.imsave("./test_{}.png".format(i), file[i])
+train_dataset, val_dataset = load_dataset(dataset_name, train_val=True)
+train_loader = DataLoader(train_dataset, batch_size=10, shuffle=True)
+for data, target in train_loader:
+    print(data.shape)
+    for i in range(10):
+        x = data[i].numpy()
+        print(type(x))
+        # x = np.moveaxis(x, -1, 0)
+        # x = np.moveaxis(x, 0, -1)
+        x = x.transpose((2, 1, 0))
+        plt.subplot(2, 5, i + 1)
+        plt.imshow(x)
+        plt.axis('off')
+    # plt.show()
+    for i in range(10):
+        plt.imsave("./test_{}.png".format(i), file[i])
+    exit()
+exit()
 '''
