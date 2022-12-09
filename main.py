@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader
 from torchvision.utils import save_image
 
 from model import get_standard_model, get_vae
-from training import full_training, full_vae_training, score_report
+from train_test import full_training, full_vae_training, score_report
 from utils import *
 import torch
 import argparse
