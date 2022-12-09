@@ -1,17 +1,16 @@
 import numpy as np
 from torch import optim
 from torch.autograd import Variable
-from torch.nn import MultiLabelSoftMarginLoss
 import torch
 import torch.nn as nn
 from torch.optim.lr_scheduler import StepLR
-from data import DATASET_IMAGE_CHN, DATASET_IMAGE_DIM
 from deepfool import deepfool
-from utils import progress_bar, mixup_criterion, mixup_data
+from utils import progress_bar, mixup_criterion, mixup_data, DATASET_IMAGE_CHN, DATASET_IMAGE_DIM
 from model import vae_loss_function
 
 
-def train(model, device, train_loader, dataset_name, optimizer, specificity="", vae_model=None, hyperparameters=None):
+def train(model, device, train_loader, dataset_name, optimizer, specificity="", mixup_alpha=1.0, vae_model=None):
+    criterion = nn.CrossEntropyLoss()
     model.train()
     train_loss = 0
     correct = 0
@@ -22,48 +21,45 @@ def train(model, device, train_loader, dataset_name, optimizer, specificity="", 
         if specificity == "":
             # Standard training
             output = model(data)
-            loss = MultiLabelSoftMarginLoss()(output, target)
+            loss = criterion(output, target)
             loss.backward()
             optimizer.step()
             train_loss += loss.item()
             predictions = output.argmax(dim=1, keepdim=True)
-            correct += predictions.eq(target.argmax(dim=1, keepdim=True).view_as(predictions)).sum().item()
+            correct += predictions.eq(target.view_as(predictions)).sum().item()
             total += target.size(0)
         elif specificity in ["mixup", "manifold_mixup"]:
             # Mixup on intermediate representation (initial mixup is a special case)
             layer_mix = 0 if specificity == "mixup" else None
-            outputs, targets_a, targets_b, lam = model(data, target=target, mixup_hidden=True, layer_mix=layer_mix)
-            loss = mixup_criterion(MultiLabelSoftMarginLoss(), outputs, targets_a, targets_b, lam)
+            outputs, targets_a, targets_b, lam = model(data, target=target, mixup_hidden=True, mixup_alpha=mixup_alpha, layer_mix=layer_mix)
+            loss = mixup_criterion(criterion, outputs, targets_a, targets_b, lam)
             loss.backward()
             optimizer.step()
             train_loss += loss.item()
             _, predicted = torch.max(outputs.data, 1)
             total += target.size(0)
-            _, targets_a = torch.max(targets_a, 1)
-            _, targets_b = torch.max(targets_b, 1)
             correct += (lam * predicted.eq(targets_a.data).cpu().sum().float() + (1 - lam) * predicted.eq(targets_b.data).cpu().sum().float())
         elif specificity == "mixup_vae":
             # Mixup on the latent codes
             assert vae_model is not None, "No VAE model has been provided"
-            inputs, targets_a, targets_b, lam = mixup_data(data, target, device=device, alpha=1.0)
+            inputs, targets_a, targets_b, lam = mixup_data(data, target, device=device, alpha=mixup_alpha)
             inputs, targets_a, targets_b = map(Variable, (inputs, targets_a, targets_b))
-            inputs = vae_model.decoder(inputs).to(device).view(hyperparameters["batch_size"], DATASET_IMAGE_CHN[dataset_name], DATASET_IMAGE_DIM[dataset_name], DATASET_IMAGE_DIM[dataset_name])
+            inputs = vae_model.decoder(inputs).to(device).view(inputs.shape[0], DATASET_IMAGE_CHN[dataset_name], DATASET_IMAGE_DIM[dataset_name], DATASET_IMAGE_DIM[dataset_name])
             outputs = model(inputs)
-            loss = mixup_criterion(MultiLabelSoftMarginLoss(), outputs, targets_a, targets_b, lam)
+            loss = mixup_criterion(criterion, outputs, targets_a, targets_b, lam)
             loss.backward()
             optimizer.step()
             train_loss += loss.item()
             _, predicted = torch.max(outputs.data, 1)
             total += target.size(0)
-            _, targets_a = torch.max(targets_a, 1)
-            _, targets_b = torch.max(targets_b, 1)
-            correct += (lam * predicted.eq(targets_a.data).cpu().sum().float() + (1 - lam) * predicted.eq(targets_b.data).cpu().sum().float())
+            correct += (lam * predicted.eq(targets_a.data).cpu().sum() + (1 - lam) * predicted.eq(targets_b.data).cpu().sum())
         else:
             assert False, "Unknown specificity {}".format(specificity)
         progress_bar(batch_idx, len(train_loader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)' % (train_loss / total, 100. * correct / total, correct, total))
 
 
 def evaluate(model, device, data_loader, verbose=True):
+    criterion = nn.CrossEntropyLoss()
     model.eval()
     loss = 0
     correct = 0
@@ -72,9 +68,8 @@ def evaluate(model, device, data_loader, verbose=True):
         for batch_idx, (data, target) in enumerate(data_loader):
             data, target = data.to(device), target.to(device)
             output = model(data)
-            loss += MultiLabelSoftMarginLoss()(output, target).item()
+            loss += criterion(output, target).item()
             predictions = output.argmax(dim=1, keepdim=True)
-            target = target.argmax(dim=1, keepdim=True)
             correct += predictions.eq(target.view_as(predictions)).sum().item()
             total += target.size(0)
             if verbose:
@@ -82,13 +77,13 @@ def evaluate(model, device, data_loader, verbose=True):
     return correct / total, loss / total
 
 
-def full_training(model, train_loader, val_loader, dataset_name, hyperparameters, device, specificity="", vae_model=None):
+def full_training(model, train_loader, val_loader, dataset_name, hyperparameters, device, specificity="", mixup_alpha=1.0, vae_model=None):
     optimizer = optim.Adam(model.parameters(), lr=hyperparameters["learning_rate"])
     scheduler = StepLR(optimizer, step_size=1, gamma=0.7)
     for epoch in range(hyperparameters["epochs"]):
         print("Epoch {}/{}".format(epoch, hyperparameters["epochs"]))
         print("Training ...")
-        train(model, device, train_loader, dataset_name, optimizer, specificity=specificity, vae_model=vae_model, hyperparameters=hyperparameters)
+        train(model, device, train_loader, dataset_name, optimizer, specificity=specificity, mixup_alpha=mixup_alpha, vae_model=vae_model)
         print("Evaluation on the validation set ...")
         evaluate(model, device, val_loader)
         scheduler.step()
@@ -143,19 +138,19 @@ def score_report(model, device, val_loader, test_loader, blurred_test_loader):
     val_accuracy, val_loss = evaluate(model, device, val_loader, verbose=False)
     val_df_score = deepfool_score(model, device, val_loader)
     report.append(["val", val_accuracy, val_loss, val_df_score])
-    print("\tPerformance on the validation set - acc. : {}, loss : {}, DeepFool score : {}".format(val_accuracy, val_loss, val_df_score))
+    print("\tPerformance on the validation set - acc. : {:0.4f}, loss : {:.4f}, DeepFool score : {:.4f}".format(val_accuracy, val_loss, val_df_score))
     test_accuracy, test_loss = evaluate(model, device, test_loader, verbose=False)
     test_df_score = deepfool_score(model, device, test_loader)
     report.append(["test", test_accuracy, test_loss, test_df_score])
-    print("\tPerformance on the testing set - acc. : {}, loss : {}, DeepFool score : {}".format(test_accuracy, test_loss, test_df_score))
+    print("\tPerformance on the testing set - acc. : {:0.4f}, loss : {:.4f}, DeepFool score : {:.4f}".format(test_accuracy, test_loss, test_df_score))
     blurred_test_accuracy, blurred_test_loss = evaluate(model, device, blurred_test_loader, verbose=False)
-    blurred_test_df_score = deepfool_score(model, device, blurred_test_loader)
-    report.append(["blurred_test", blurred_test_accuracy, blurred_test_loss, blurred_test_df_score])
-    print("\tPerformance on the blurred testing set - acc. : {}, loss : {}, DeepFool score : {}".format(blurred_test_accuracy, blurred_test_loss, blurred_test_df_score))
+    report.append(["blurred_test", blurred_test_accuracy, blurred_test_loss, float('nan')])
+    print("\tPerformance on the blurred testing set - acc. : {:0.4f}, loss : {:.4f}".format(blurred_test_accuracy, blurred_test_loss))
     return report
 
 
 def deepfool_score(model, device, test_loader):
+    # return 0  # This is only to speed up testing
     model.softmax = nn.Identity()
     # test the model on adversarial examples
     norms = []
