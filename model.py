@@ -2,6 +2,7 @@ import random
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torchvision.models import resnet18, ResNet18_Weights
 
 from utils import mixup_data
 
@@ -10,7 +11,7 @@ def get_standard_model(dataset_name, device):
     if dataset_name.endswith("mnist"):
         return MnistNet(device=device)
     else:  # dataset_name.startswith("cifar")
-        return CifarNet(device=device, n_out=(10 if dataset_name.endswith("10") else 100))
+        return CifarResNet(device=device, n_out=(10 if dataset_name.endswith("10") else 100))
 
 
 def get_vae(dataset_name, h_dim1, h_dim2, z_dim):
@@ -19,6 +20,18 @@ def get_vae(dataset_name, h_dim1, h_dim2, z_dim):
     else:  # dataset_name.startswith("cifar")
         return VAE(x_dim=32*32*3, h_dim1=h_dim1, h_dim2=h_dim2, z_dim=z_dim)
 
+
+class CifarResNet(nn.Module):
+    def __init__(self, device, n_out):
+        super(CifarResNet, self).__init__()
+        self.feature_extractor = resnet18(weights=ResNet18_Weights.DEFAULT)
+        self.classifier = nn.LazyLinear(n_out)
+
+    def forward(self, x):
+        x = self.feature_extractor(x)
+        x = self.classifier(x)
+
+        return x
 
 class MnistNet(nn.Module):
     def __init__(self, device):
@@ -71,8 +84,8 @@ class MnistNet(nn.Module):
             x = F.relu(x)
             x = self.dropout(x)
             x = self.fc2(x)
-            output = self.softmax(x)
-            return output
+            # x = self.softmax(x)
+            return x
 
 
 class CifarNet(nn.Module):
