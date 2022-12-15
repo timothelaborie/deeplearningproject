@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torchvision.models import resnet18, ResNet18_Weights
+import copy
 
 from utils import mixup_data
 
@@ -294,9 +295,13 @@ class ResNet(nn.Module):
 class CifarResNet(nn.Module):
     def __init__(self, device, n_out):
         super(CifarResNet, self).__init__()
-        self.feature_extractor = ResNet(BasicBlock, [2, 2, 2, 2])
-        # self.feature_extractor = torch.load("./models/cifar10/standard/model.pt")
-        self.classifier = nn.LazyLinear(n_out)
+        self.model = ResNet(BasicBlock, [2, 2, 2, 2])
+        self.model.load_state_dict(torch.load("./models/cifar10/standard/resnet18.pt"))
+        self.feature_extractor = copy.deepcopy(self.model)
+        self.feature_extractor.fc = nn.Identity()
+        self.classifier = copy.deepcopy(self.model.fc)
+        del self.model
+        
 
     def forward(self, x):
         x = self.feature_extractor(x)
