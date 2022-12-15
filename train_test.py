@@ -88,6 +88,8 @@ def full_training(model, train_loader, val_loader, dataset_name, hyperparameters
         evaluate(model, device, val_loader)
         scheduler.step()
         print("\n")
+        if specificity == "":
+            torch.save(model, "./models/" + str(dataset_name) + "/standard/model.pt")
 
 
 def vae_train(vae, device, optimizer, train_loader):
