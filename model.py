@@ -295,7 +295,7 @@ class CifarResNet(nn.Module):
     def __init__(self, device, n_out):
         super(CifarResNet, self).__init__()
         self.feature_extractor = ResNet(BasicBlock, [2, 2, 2, 2])
-        self.feature_extractor = torch.load("./models/cifar10/standard/model.pt")
+        # self.feature_extractor = torch.load("./models/cifar10/standard/model.pt")
         self.classifier = nn.LazyLinear(n_out)
 
     def forward(self, x):
