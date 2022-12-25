@@ -89,7 +89,7 @@ def main():
         print(min_loss)
         print(time.time() - start)
 
-        all_latents[fname] = min_w.squeeze(0)
+        all_latents[fname] = min_w.squeeze(0).cpu().numpy()
 
     print("done")
     print(all_latents)
