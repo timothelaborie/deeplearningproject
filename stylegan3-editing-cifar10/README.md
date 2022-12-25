@@ -1,3 +1,45 @@
+# New README for cifar 10 inversion
+
+Train encoder
+```
+stylegan3-editing-cifar10/inversion/scripts/train_restyle_psp.py \
+--dataset_type cifar10_endocde \
+--encoder_type ResNetBackboneEncoder \
+--exp_dir experiments/cifar10_psp \
+--batch_size 8 \
+--test_batch_size 8 \
+--workers 8 \
+--test_workers 8 \
+--val_interval 5000 \
+--save_interval 10000 \
+--start_from_latent_avg True \
+--lpips_lambda 0.8 \
+--l2_lambda 1 \
+--id_lambda 0.1 \
+--input_nc 6 \
+--n_iters_per_batch 3 \
+--output_size 32 \
+--max_steps 1000000 \
+--stylegan_weights stylegan3-editing-cifar10/pretrained_models/sg2c10-32.pkl
+```
+
+get latents from encoder:
+```
+python inversion/scripts/inference_iterative.py \
+--output_path experiments/cifar10_psp/inference \
+--checkpoint_path experiments/cifar10_psp/checkpoints/best_model.pt \
+--data_path /path/to/cifar10/train \
+--test_batch_size 8 \
+--test_workers 8 \
+--n_iters_per_batch 3 \
+```
+
+improve images using gradient descent (edit the file directly if you want to only apply it on a subset):
+```
+stylegan3-editing-cifar10/inversion/scripts/gradient_invert.py
+```
+
+# Original README
 # Third Time's the Charm? Image and Video Editing with StyleGAN3 (AIM Workshop ECCV 2022)
 
 > Yuval Alaluf*, Or Patashnik*, Zongze Wu, Asif Zamir, Eli Shechtman, Dani Lischinski, Daniel Cohen-Or  
