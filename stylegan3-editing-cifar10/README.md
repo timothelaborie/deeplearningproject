@@ -29,7 +29,7 @@ stylegan3-editing-cifar10/inversion/scripts/train_restyle_psp.py \
 
 get latents from encoder:
 ```
-python inversion/scripts/inference_iterative.py \
+python stylegan3-editing-cifar10/inversion/scripts/inference_iterative.py \
 --output_path experiments/cifar10_psp/inference \
 --checkpoint_path experiments/cifar10_psp/checkpoints/best_model.pt \
 --data_path /path/to/cifar10/train \
