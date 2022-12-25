@@ -26,6 +26,26 @@ def tensor2im(var: torch.tensor):
     var = var * 255
     return Image.fromarray(var.astype('uint8'))
 
+
+def combine_gl():
+    gl_path = '/home/ben/play/gradlatents/'
+
+    fnames = os.listdir(gl_path)
+    fnames.sort()
+
+    print(fnames)
+
+    all_latents = {}
+
+    for fname in fnames:
+        cl = np.load(gl_path + fname, allow_pickle=True).item()
+
+        for key in cl.keys():
+            print(key)
+            all_latents[key] = cl[key]
+
+    np.save(f'grad_latents_{00000}_{50000}.npy', all_latents)
+
 def main():
     decoder_path = '/cluster/home/bgunders/stylegan3-editing/pretrained_models/sg2c10-32.pkl'
     dir_path = '/cluster/home/bgunders/cifar10/train/'
@@ -98,3 +118,5 @@ def main():
 
 if __name__ == '__main__':
 	main()
+	#uncomment this and comment main() to combine all the gradient latents
+	#combine_gl()
