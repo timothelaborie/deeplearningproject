@@ -2,7 +2,10 @@
 
 builds on https://github.com/yuval-alaluf/stylegan3-editing
 
-Download models: TODO
+Download models:
+download the model from https://api.ngc.nvidia.com/v2/models/nvidia/research/stylegan2/versions/1/files/stylegan2-cifar10-32x32.pkl
+
+if it doesnt work directly convert it using https://github.com/NVlabs/stylegan3/edit/main/legacy.py
 
 ## Train encoder
 ```
