@@ -1,5 +1,7 @@
 # New README for cifar 10 inversion
 
+builds on https://github.com/yuval-alaluf/stylegan3-editing
+
 Download models: TODO
 
 Train encoder
