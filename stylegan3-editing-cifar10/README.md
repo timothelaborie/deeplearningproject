@@ -1,5 +1,7 @@
 # New README for cifar 10 inversion
 
+Download models: TODO
+
 Train encoder
 ```
 stylegan3-editing-cifar10/inversion/scripts/train_restyle_psp.py \
