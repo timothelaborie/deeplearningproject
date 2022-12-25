@@ -4,7 +4,7 @@ builds on https://github.com/yuval-alaluf/stylegan3-editing
 
 Download models: TODO
 
-Train encoder
+## Train encoder
 ```
 stylegan3-editing-cifar10/inversion/scripts/train_restyle_psp.py \
 --dataset_type cifar10_endocde \
@@ -27,7 +27,7 @@ stylegan3-editing-cifar10/inversion/scripts/train_restyle_psp.py \
 --stylegan_weights stylegan3-editing-cifar10/pretrained_models/sg2c10-32.pkl
 ```
 
-get latents from encoder:
+## get latents from encoder:
 ```
 python stylegan3-editing-cifar10/inversion/scripts/inference_iterative.py \
 --output_path experiments/cifar10_psp/inference \
@@ -38,7 +38,8 @@ python stylegan3-editing-cifar10/inversion/scripts/inference_iterative.py \
 --n_iters_per_batch 3 \
 ```
 
-improve images using gradient descent (edit the file directly if you want to only apply it on a subset):
+## improve images using gradient descent
+(edit the file directly if you want to only apply it on a subset):
 ```
 stylegan3-editing-cifar10/inversion/scripts/gradient_invert.py
 ```
