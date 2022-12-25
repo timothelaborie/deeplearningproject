@@ -1,0 +1,53 @@
+name: sg3e
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - _libgcc_mutex
+  - ca-certificates
+  - certifi
+  - libedit
+  - libffi
+  - libgcc-ng
+  - libstdcxx-ng
+  - ncurses
+  - ninja
+  - openssl
+  - pip
+  - python=3.9
+  - cudatoolkit=11.7
+  - python_abi
+  - readline
+  - setuptools
+  - sqlite
+  - tk
+  - wheel
+  - xz
+  - zlib
+  - dill
+  - click
+  - timm
+  - pytorch
+  - torchvision
+  - torchaudio
+  - pytorch-cuda=11.6
+  - pip:
+    - scipy
+    - matplotlib
+    - tqdm
+    - numpy
+    - opencv-python
+    - pillow
+    - tensorboard
+    - scikit-learn
+    - imageio
+    - imageio-ffmpeg
+    - dataclasses
+    - dlib
+    - ftfy
+    - gdown
+    - git+https://github.com/openai/CLIP.git
+    - pyrallis
+prefix: ~/anaconda3/envs/sg3e
