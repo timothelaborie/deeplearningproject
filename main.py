@@ -1,32 +1,30 @@
-import matplotlib.pyplot as plt
 from torch import optim
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
-from torchvision.utils import save_image
-
-from model import get_standard_model, get_vae
-from train_test import full_training, full_vae_training, score_report
+from model import get_vae, CifarResNet, get_standard_model
+from train_test import full_training, full_vae_training, score_report, evaluate
 from utils import *
 import torch
 import argparse
 import numpy as np
+import models
 
 # Very important : check whether DeepFool is evaluated or not
-
 
 # Hyperparameter that affect the training of the different variants
 RELEVANT_HYPERPARAMETER_NAMES = {
     "standard": ["epochs", "batch_size", "learning_rate", "random_seed"],
-    "mixup": ["epochs", "batch_size", "learning_rate", "mixup_alpha", "random_seed"],
-    "manifold_mixup": ["epochs", "batch_size", "learning_rate", "mixup_alpha", "random_seed"],
-    "vae": ["epochs", "batch_size", "learning_rate", "mixup_alpha", "random_seed", "vae_epochs", "vae_h_dim1", "vae_h_dim2", "vae_z_dim", "vae_lat_opt_steps"],
-    "gan": ["epochs", "batch_size", "learning_rate", "mixup_alpha", "random_seed", "gan_epochs", "gan_h_dim1", "gan_h_dim2", "gan_z_dim", "gan_lat_opt_steps"],
+    "mixup": ["epochs", "batch_size", "learning_rate", "mixup_alpha", "mixup_ratio", "random_seed"],
+    "manifold_mixup": ["epochs", "batch_size", "learning_rate", "mixup_alpha", "mixup_ratio", "random_seed"],
+    "mixup_vae": ["epochs", "batch_size", "learning_rate", "mixup_alpha", "mixup_ratio", "random_seed", "vae_epochs", "vae_sharp", "vae_h_dim1", "vae_h_dim2", "vae_z_dim", "vae_lat_opt_steps"],
+    "mixup_gan": ["epochs", "batch_size", "learning_rate", "mixup_alpha", "mixup_ratio", "random_seed", "gan_epochs", "gan_h_dim1", "gan_h_dim2", "gan_z_dim", "gan_lat_opt_steps"],
 }
 
 DATASETS = ["mnist", "fashionmnist", "cifar10", "cifar100"]
-VARIANTS = ["standard", "mixup", "manifold_mixup", "vae", "gan"]
+VARIANTS = ["standard", "mixup", "manifold_mixup", "mixup_vae", "mixup_gan"]
 
 parser = argparse.ArgumentParser(description="Experiment for the DeepLearning project")
+
 
 # Utility commands
 parser.add_argument('--download', '-d', action='store_true', help='only downloads the datasets')
@@ -38,8 +36,10 @@ parser.add_argument('--epochs', type=int, default=10, help="total epochs to run"
 parser.add_argument('--batch_size', type=int, default=16, help="batch size")
 parser.add_argument('--learning_rate', type=float, default=0.001, help="learning rate")
 parser.add_argument('--mixup_alpha', type=float, default=1.0, help="parameter of the Beta distribution to sample lambda for mixup")
+parser.add_argument('--mixup_ratio', type=float, default=1.0, help="ratio of the mixed up data used to train the classifier, the rest is the standard dataset")
 parser.add_argument('--random_seed', type=int, default=0, help="random seed")
 parser.add_argument('--vae_epochs', type=int, default=8, help="total epochs to train the VAE")
+parser.add_argument('--vae_sharp', type=int, default=1, help="sharpening coefficient for the output of the VAE")
 parser.add_argument('--vae_h_dim1', type=int, default=512, help="first hidden dimension of the VAE")
 parser.add_argument('--vae_h_dim2', type=int, default=512, help="second hidden dimension of the VAE")
 parser.add_argument('--vae_z_dim', type=int, default=16, help="dimension of the latent code for the VAE")
@@ -51,7 +51,6 @@ parser.add_argument('--gan_z_dim', type=int, default=16, help="dimension of the 
 parser.add_argument('--gan_lat_opt_steps', type=int, default=0, help="number of steps of the optimization of the latent codes of the GAN")
 
 args = parser.parse_args()
-
 
 if args.results:
     report_results()
@@ -121,27 +120,23 @@ blurred_test_loader = DataLoader(blurred_test_dataset, batch_size=100, shuffle=F
 
 if variant == "standard":
     print("\n\nTraining with the standard model")
-    model = get_standard_model(dataset_name, device)
-    model = model.to(device)
+    model = get_standard_model(dataset_name, device).to(device)
     full_training(model, train_loader, val_loader, dataset_name, relevant_hyperparameters, device)
 elif variant == "mixup":
     print("\n\nTraining with Mixup")
-    model = get_standard_model(dataset_name, device)
-    model = model.to(device)
-    full_training(model, train_loader, val_loader, dataset_name, relevant_hyperparameters, device, specificity="mixup", mixup_alpha=relevant_hyperparameters["mixup_alpha"])
+    model = get_standard_model(dataset_name, device).to(device)
+    full_training(model, train_loader, val_loader, dataset_name, relevant_hyperparameters, device, specificity="mixup", mixup_alpha=relevant_hyperparameters["mixup_alpha"], mixup_ratio=relevant_hyperparameters["mixup_ratio"])
 elif variant == "manifold_mixup":
     print("\n\nTraining with Manifold Mixup")
-    model = get_standard_model(dataset_name, device)
-    model = model.to(device)
-    full_training(model, train_loader, val_loader, dataset_name, relevant_hyperparameters, device, specificity="manifold_mixup", mixup_alpha=relevant_hyperparameters["mixup_alpha"])
-elif variant == "vae":
+    model = get_standard_model(dataset_name, device).to(device)
+    full_training(model, train_loader, val_loader, dataset_name, relevant_hyperparameters, device, specificity="manifold_mixup", mixup_alpha=relevant_hyperparameters["mixup_alpha"], mixup_ratio=relevant_hyperparameters["mixup_ratio"])
+elif variant == "mixup_vae":
     print("\n\nTraining with a VAE")
     vae_relevant_hyperparameters = mask_dict(relevant_hyperparameters, ["vae_h_dim1", "vae_h_dim2", "vae_z_dim", "vae_epochs", "random_seed"])
     vae_hyperparameter_name = hyperparameter_to_name(vae_relevant_hyperparameters)
     vae_latent_code_relevant_hyperparameters = mask_dict(relevant_hyperparameters, ["vae_h_dim1", "vae_h_dim2", "vae_z_dim", "vae_epochs", "random_seed", "vae_lat_opt_steps"])
     vae_latent_code_hyperparameter_name = hyperparameter_to_name(vae_latent_code_relevant_hyperparameters)
-
-    vae_file_name = "./models/{}/vae/{}.pth".format(dataset_name, vae_hyperparameter_name)
+    vae_file_name = "./models/{}/mixup_vae/{}.pth".format(dataset_name, vae_hyperparameter_name)
     vae_latent_code_file_name = "./augmented_datasets/{}/{}_train_latent_codes.npy".format(dataset_name, vae_latent_code_hyperparameter_name)
     vae_latent_labels_file_name = "./augmented_datasets/{}/{}_train_latent_labels.npy".format(dataset_name, vae_latent_code_hyperparameter_name)
     # Get the VAE model
@@ -174,13 +169,13 @@ elif variant == "vae":
             # Optimize the latent codes in order to reconstruct the image more precisely
             for i in range(vae_latent_code_relevant_hyperparameters["vae_lat_opt_steps"]):
                 optimizer.zero_grad()
-                gen = vae_model.decoder(opt_latent_codes).view(relevant_hyperparameters["batch_size"], DATASET_IMAGE_CHN[dataset_name], DATASET_IMAGE_DIM[dataset_name], DATASET_IMAGE_DIM[dataset_name])
+                gen = vae_model.decoder(opt_latent_codes).view(data.shape[0], DATASET_IMAGE_CHN[dataset_name], DATASET_IMAGE_DIM[dataset_name], DATASET_IMAGE_DIM[dataset_name])
                 loss = F.mse_loss(gen, data)
                 loss.backward()
                 optimizer.step()
             latent_x.append(opt_latent_codes.cpu().detach().numpy())
             latent_y.append(target.cpu().detach().numpy())
-            progress_bar(batch_idx, len(train_loader))
+            # progress_bar(batch_idx, len(train_loader))
         latent_x = np.concatenate(latent_x, axis=0)
         latent_y = np.concatenate(latent_y, axis=0)
         # Store the latent codes for later reuse
@@ -192,20 +187,16 @@ elif variant == "vae":
         flat_data = data.view(-1, vae_model.x_dim)
         latent_codes = vae_model.encoder(flat_data)[0]  # .cpu().detach().numpy()
         new_images = vae_model.decoder(latent_codes)
-        if dataset_name == "cifar10":  # Denormalize the CIFAR data
-            new_images = new_images / 2 + 0.5
-            data = data / 2 + 0.5
-        save_image(data.view(data.shape[0], DATASET_IMAGE_CHN[dataset_name], DATASET_IMAGE_DIM[dataset_name], DATASET_IMAGE_DIM[dataset_name]), "./original.png")
-        save_image(new_images.view(data.shape[0], DATASET_IMAGE_CHN[dataset_name], DATASET_IMAGE_DIM[dataset_name], DATASET_IMAGE_DIM[dataset_name]), "./reconstructed.png")
+        store_png_images(data, "./original.png", dataset_name)
+        store_png_images(new_images, "./reconstructed.png", dataset_name)
 
     latent_x = torch.from_numpy(latent_x).float()
     latent_y = torch.from_numpy(latent_y)
     latent_train_loader = DataLoader(torch.utils.data.TensorDataset(latent_x, latent_y), batch_size=relevant_hyperparameters["batch_size"], shuffle=True)
-    model = get_standard_model(dataset_name, device)
-    model = model.to(device)
+    model = get_standard_model(dataset_name, device).to(device)
     # Train the model with the latent codes
-    full_training(model, latent_train_loader, val_loader, dataset_name, relevant_hyperparameters, device, specificity="mixup_vae", mixup_alpha=relevant_hyperparameters["mixup_alpha"], vae_model=vae_model)
-elif variant == "gan":
+    full_training(model, train_loader, val_loader, dataset_name, relevant_hyperparameters, device, specificity="mixup_vae", mixup_alpha=relevant_hyperparameters["mixup_alpha"], mixup_ratio=relevant_hyperparameters["mixup_ratio"], vae_model=vae_model, latent_train_loader=latent_train_loader)
+elif variant == "mixup_gan":
     # To implement use the implementation of the VAE to build on it, many parts are shared
     model = None
 else:
