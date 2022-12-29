@@ -21,7 +21,7 @@ def get_dataset(dataset_name, blur=False):
         transformations.append(transforms.GaussianBlur(5, 5))
     train = DATASETS_CALLS[dataset_name]('./data', train=True, download=True, transform=transforms.Compose(transformations))
     test = DATASETS_CALLS[dataset_name]('./data', train=False, download=True, transform=transforms.Compose(transformations))
-    train, val = torch.utils.data.random_split(train, DATASETS_TRAIN_SPLITS[dataset_name])
+    train, val = torch.utils.data.random_split(train, DATASETS_TRAIN_SPLITS[dataset_name], generator=torch.Generator().manual_seed(42))
     return train, val, test
 
 

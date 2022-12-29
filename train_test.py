@@ -11,7 +11,7 @@ from utils import progress_bar, mixup_criterion, mixup_data, DATASET_IMAGE_CHN, 
 from model import vae_loss_function
 
 
-def train(model, device, image_train_loader, dataset_name, optimizer, hyperparameters, specificity="", mixup_alpha=1.0, mixup_ratio=1.0, vae_model=None, latent_train_loader=None):
+def train(model, device, image_train_loader, dataset_name, optimizer, hyperparameters, specificity="", mixup_alpha=1.0, mixup_ratio=1.0, vae_model=None,gan_model=None, latent_train_loader=None):
     criterion = nn.CrossEntropyLoss()
     model.train()
     train_loss = 0
@@ -66,6 +66,23 @@ def train(model, device, image_train_loader, dataset_name, optimizer, hyperparam
             _, predicted = torch.max(outputs.data, 1)
             total += target.size(0)
             correct += (lam * predicted.eq(targets_a.data).cpu().sum() + (1 - lam) * predicted.eq(targets_b.data).cpu().sum())
+        elif specificity == "mixup_gan":
+            data, target = latent_data, latent_target
+            data, target = data.to(device), target.to(device)
+            # Mixup on the latent codes
+            assert gan_model is not None, "No GAN model has been provided"
+            inputs, targets_a, targets_b, lam = mixup_data(data, target, device=device, alpha=mixup_alpha)
+            inputs, targets_a, targets_b = map(Variable, (inputs, targets_a, targets_b))
+            inputs = gan_model.synthesis(inputs, noise_mode='const', force_fp32=True).to(device).view(inputs.shape[0], DATASET_IMAGE_CHN[dataset_name], DATASET_IMAGE_DIM[dataset_name], DATASET_IMAGE_DIM[dataset_name])
+
+            outputs = model(inputs)
+            loss = mixup_criterion(criterion, outputs, targets_a, targets_b, lam)
+            loss.backward()
+            optimizer.step()
+            train_loss += loss.item()
+            _, predicted = torch.max(outputs.data, 1)
+            total += target.size(0)
+            correct += (lam * predicted.eq(targets_a.data).cpu().sum() + (1 - lam) * predicted.eq(targets_b.data).cpu().sum())
         else:
             assert False, "Unknown specificity {}".format(specificity)
         progress_bar(batch_idx, loader_size, 'Loss: %.3f | Acc: %.3f%% (%d/%d)' % (train_loss / total, 100. * correct / total, correct, total))
@@ -90,13 +107,13 @@ def evaluate(model, device, data_loader, verbose=True):
     return correct / total, loss / total
 
 
-def full_training(model, image_train_loader, val_loader, dataset_name, hyperparameters, device, specificity="", mixup_alpha=1.0, mixup_ratio=1.0, vae_model=None, latent_train_loader=None):
+def full_training(model, image_train_loader, val_loader, dataset_name, hyperparameters, device, specificity="", mixup_alpha=1.0, mixup_ratio=1.0, vae_model=None,gan_model=None, latent_train_loader=None):
     optimizer = optim.Adam(model.parameters(), lr=hyperparameters["learning_rate"])
     scheduler = StepLR(optimizer, step_size=1, gamma=0.7)
     for epoch in range(hyperparameters["epochs"]):
         print("Epoch {}/{}".format(epoch, hyperparameters["epochs"]))
         print("Training ...")
-        train(model, device, image_train_loader, dataset_name, optimizer, hyperparameters, specificity=specificity, mixup_alpha=mixup_alpha, mixup_ratio=mixup_ratio, vae_model=vae_model, latent_train_loader=latent_train_loader)
+        train(model, device, image_train_loader, dataset_name, optimizer, hyperparameters, specificity=specificity, mixup_alpha=mixup_alpha, mixup_ratio=mixup_ratio, vae_model=vae_model,gan_model=gan_model, latent_train_loader=latent_train_loader)
         print("Evaluation on the validation set ...")
         evaluate(model, device, val_loader)
         scheduler.step()

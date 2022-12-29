@@ -8,6 +8,8 @@ import torch
 import argparse
 import numpy as np
 import models
+from torch.utils.data import random_split
+from torch.utils.data.dataset import Subset
 
 # Very important : check whether DeepFool is evaluated or not
 
@@ -197,8 +199,30 @@ elif variant == "mixup_vae":
     # Train the model with the latent codes
     full_training(model, train_loader, val_loader, dataset_name, relevant_hyperparameters, device, specificity="mixup_vae", mixup_alpha=relevant_hyperparameters["mixup_alpha"], mixup_ratio=relevant_hyperparameters["mixup_ratio"], vae_model=vae_model, latent_train_loader=latent_train_loader)
 elif variant == "mixup_gan":
-    # To implement use the implementation of the VAE to build on it, many parts are shared
-    model = None
+    if dataset_name.endswith("mnist"):
+        print("not implemented")
+    else:
+        latent = np.load("grad_latents_00000_50000.npy", allow_pickle=True).item()
+        latent_x = []
+        latent_y = []
+        for (key,value) in latent.items():
+            latent_x.append(value)
+            latent_y.append(int(key[6]))
+
+        latent_x = torch.from_numpy(np.array(latent_x)).float()
+        var1, var2 = random_split(latent_x, [40000, 10000], generator=torch.Generator().manual_seed(42))
+        var3:Subset = var1
+        latent_x = latent_x[var3.indices]
+        # print(latent_x.shape)
+        latent_y = torch.from_numpy(np.array(latent_y)[var3.indices])
+        #convert to long
+        latent_y = latent_y.long()
+        latent_train_loader = DataLoader(torch.utils.data.TensorDataset(latent_x, latent_y), batch_size=relevant_hyperparameters["batch_size"], shuffle=True)
+        model = get_standard_model(dataset_name, device).to(device)
+        from sg3 import SG3Generator
+        gan_model = SG3Generator(checkpoint_path='./sg2c10-32.pkl').decoder.cuda()
+        # Train the model with the latent codes
+        full_training(model, train_loader, val_loader, dataset_name, relevant_hyperparameters, device, specificity="mixup_gan", mixup_alpha=relevant_hyperparameters["mixup_alpha"], mixup_ratio=relevant_hyperparameters["mixup_ratio"], gan_model=gan_model, latent_train_loader=latent_train_loader)
 else:
     assert False
 
