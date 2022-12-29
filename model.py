@@ -8,11 +8,11 @@ import copy
 from utils import mixup_data
 
 
-def get_standard_model(dataset_name, device):
+def get_standard_model(dataset_name, device,pretrained=True):
     if dataset_name.endswith("mnist"):
         return MnistNet(device=device)
     else:  # dataset_name.startswith("cifar")
-        return CifarResNet(device=device, n_out=(10 if dataset_name.endswith("10") else 100))
+        return CifarResNet(device=device, n_out=(10 if dataset_name.endswith("10") else 100),pretrained=pretrained)
 
 
 def get_vae(dataset_name, h_dim1, h_dim2, z_dim):
@@ -22,6 +22,9 @@ def get_vae(dataset_name, h_dim1, h_dim2, z_dim):
         return VAE(x_dim=32*32*3, h_dim1=h_dim1, h_dim2=h_dim2, z_dim=z_dim)
 
 
+
+def get_gan(z_dim):
+    return GAN(z_dim=z_dim)
 
 
 
@@ -293,10 +296,12 @@ class ResNet(nn.Module):
 
 
 class CifarResNet(nn.Module):
-    def __init__(self, device, n_out):
+    def __init__(self,device,n_out, pretrained):
         super(CifarResNet, self).__init__()
         self.model = ResNet(BasicBlock, [2, 2, 2, 2])
-        self.model.load_state_dict(torch.load("./models/cifar10/standard/resnet18.pt"))
+        if pretrained:
+            print("Loading pretrained model")
+            self.model.load_state_dict(torch.load("./models/cifar10/standard/resnet18.pt"))
         self.feature_extractor = copy.deepcopy(self.model)
         self.feature_extractor.fc = nn.Identity()
         self.classifier = copy.deepcopy(self.model.fc)
@@ -490,3 +495,79 @@ def vae_loss_function(recon_x, x, mu, log_var, x_dim):
     bce = F.binary_cross_entropy(recon_x, x.view(-1, x_dim), reduction='sum')
     kld = -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp())
     return bce + kld
+
+
+
+
+
+class Generator(nn.Module):
+    def __init__(self, args):
+        super().__init__()
+
+        self.args = args
+
+        ls = self.args.z_dim
+        
+        self.seq = nn.Sequential(
+            nn.ConvTranspose2d(ls, int(ls/2), kernel_size=3, stride=2, padding=0, bias=False),
+            nn.BatchNorm2d(int(ls/2)),
+            nn.LeakyReLU(),
+            nn.ConvTranspose2d(int(ls/2), int(ls/4), kernel_size=3, stride=2, padding=1, bias=False),
+            nn.BatchNorm2d(int(ls/4)),
+            nn.LeakyReLU(),
+            nn.ConvTranspose2d(int(ls/4), int(ls/8), kernel_size=3, stride=2, padding=1, bias=False),
+            nn.BatchNorm2d(int(ls/8)),
+            nn.LeakyReLU(),
+            nn.ConvTranspose2d(int(ls/8), int(ls/16), kernel_size=3, stride=2, padding=1, bias=False),
+            nn.BatchNorm2d(int(ls/16)),
+            nn.LeakyReLU(),
+            nn.ConvTranspose2d(int(ls/16), 1, kernel_size=3, stride=2, padding=1, bias=True),
+            nn.Tanh()
+            )
+
+    def forward(self, x):
+        x = self.seq(x)
+        x = x[:, :, 0:28, 0:28]
+        return x
+
+
+class Discriminator(nn.Module):
+    def __init__(self, args):
+        super().__init__()
+
+        self.args = args
+
+        ls = self.args.latent_size
+        
+        self.seq = nn.Sequential(
+            nn.Conv2d(1, int(ls/16), kernel_size=3, stride=2, padding=1, bias=False),
+            nn.BatchNorm2d(int(ls/16)),
+            nn.LeakyReLU(),
+            nn.Conv2d(int(ls/16), int(ls/8), kernel_size=3, stride=2, padding=1, bias=False),
+            nn.BatchNorm2d(int(ls/8)),
+            nn.LeakyReLU(),
+            nn.Conv2d(int(ls/8), int(ls/4), kernel_size=3, stride=2, padding=1, bias=False),
+            nn.BatchNorm2d(int(ls/4)),
+            nn.LeakyReLU(),
+            nn.Conv2d(int(ls/4), int(ls/2), kernel_size=3, stride=2, padding=1, bias=False),
+            nn.BatchNorm2d(int(ls/2)),
+            nn.LeakyReLU(),
+            nn.Conv2d(int(ls/2), 1,  kernel_size=3, stride=2, padding=1, bias=True),
+            nn.Sigmoid()
+            )
+
+    def forward(self, x):
+        x = self.seq(x)
+        return x
+
+
+class GAN(nn.Module):
+    def __init__(self, args):
+        super().__init__()
+        self.generator = Generator(args)
+        self.discriminator = Discriminator(args)
+
+    def forward(self, x):
+        return self.generator(x)
+
+    

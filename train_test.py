@@ -162,6 +162,23 @@ def full_vae_training(vae, train_loader, val_loader, device, hyperparameters):
         print("\n")
 
 
+
+
+
+
+
+def full_gan_training(gan, train_loader, device, hyperparameters):
+    pass
+    # optimizer = optim.Adam(gan.parameters())
+    # for epoch in range(hyperparameters["gan_epochs"]):
+    #     print("Epoch {}/{}".format(epoch, hyperparameters["gan_epochs"]))
+    #     print("Training ...")
+    #     gan_train(gan, device, optimizer, train_loader)
+    #     print("\n")
+
+
+
+
 def score_report(model, device, val_loader, test_loader, blurred_test_loader):
     report = [['type', 'accuracy', 'loss', 'deep_fool']]
     print("Final report :")

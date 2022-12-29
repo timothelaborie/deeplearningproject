@@ -1,8 +1,8 @@
 from torch import optim
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
-from model import get_vae, CifarResNet, get_standard_model
-from train_test import full_training, full_vae_training, score_report, evaluate
+from model import get_vae, CifarResNet, get_standard_model,get_gan
+from train_test import full_training, full_vae_training, score_report, evaluate,full_gan_training
 from utils import *
 import torch
 import argparse
@@ -19,7 +19,7 @@ RELEVANT_HYPERPARAMETER_NAMES = {
     "mixup": ["epochs", "batch_size", "learning_rate", "mixup_alpha", "mixup_ratio", "random_seed"],
     "manifold_mixup": ["epochs", "batch_size", "learning_rate", "mixup_alpha", "mixup_ratio", "random_seed"],
     "mixup_vae": ["epochs", "batch_size", "learning_rate", "mixup_alpha", "mixup_ratio", "random_seed", "vae_epochs", "vae_sharp", "vae_h_dim1", "vae_h_dim2", "vae_z_dim", "vae_lat_opt_steps"],
-    "mixup_gan": ["epochs", "batch_size", "learning_rate", "mixup_alpha", "mixup_ratio", "random_seed", "gan_epochs", "gan_h_dim1", "gan_h_dim2", "gan_z_dim", "gan_lat_opt_steps"],
+    "mixup_gan": ["epochs", "batch_size", "learning_rate", "mixup_alpha", "mixup_ratio", "random_seed", "gan_epochs", "gan_z_dim", "gan_lat_opt_steps"],
 }
 
 DATASETS = ["mnist", "fashionmnist", "cifar10", "cifar100"]
@@ -34,6 +34,7 @@ parser.add_argument('--results', '-r', action='store_true', help='show the resul
 
 parser.add_argument('--dataset', choices=DATASETS, default="mnist", help="dataset to run the experiment on")
 parser.add_argument('--variant', choices=VARIANTS, default="standard", help="training and model variant used")
+parser.add_argument('--pretrained', type=int, default=0, help="use cifar10 pre-trained model")
 parser.add_argument('--epochs', type=int, default=10, help="total epochs to run")
 parser.add_argument('--batch_size', type=int, default=16, help="batch size")
 parser.add_argument('--learning_rate', type=float, default=0.001, help="learning rate")
@@ -47,12 +48,11 @@ parser.add_argument('--vae_h_dim2', type=int, default=512, help="second hidden d
 parser.add_argument('--vae_z_dim', type=int, default=16, help="dimension of the latent code for the VAE")
 parser.add_argument('--vae_lat_opt_steps', type=int, default=0, help="number of steps of the optimization of the latent codes of the VAE")
 parser.add_argument('--gan_epochs', type=int, default=8, help="total epochs to train the GAN")
-parser.add_argument('--gan_h_dim1', type=int, default=512, help="first hidden dimension of the GAN")
-parser.add_argument('--gan_h_dim2', type=int, default=512, help="second hidden dimension of the GAN")
-parser.add_argument('--gan_z_dim', type=int, default=16, help="dimension of the latent code for the GAN")
-parser.add_argument('--gan_lat_opt_steps', type=int, default=0, help="number of steps of the optimization of the latent codes of the GAN")
+parser.add_argument('--gan_z_dim', type=int, default=100, help="dimension of the latent code for the GAN")
+parser.add_argument('--gan_lat_opt_steps', type=int, default=5, help="number of steps of the optimization of the latent codes of the GAN")
 
 args = parser.parse_args()
+
 
 if args.results:
     report_results()
@@ -122,16 +122,19 @@ blurred_test_loader = DataLoader(blurred_test_dataset, batch_size=100, shuffle=F
 
 if variant == "standard":
     print("\n\nTraining with the standard model")
-    model = get_standard_model(dataset_name, device).to(device)
+    model = get_standard_model(dataset_name, device,args.pretrained).to(device)
     full_training(model, train_loader, val_loader, dataset_name, relevant_hyperparameters, device)
 elif variant == "mixup":
     print("\n\nTraining with Mixup")
-    model = get_standard_model(dataset_name, device).to(device)
+    model = get_standard_model(dataset_name, device,args.pretrained).to(device)
     full_training(model, train_loader, val_loader, dataset_name, relevant_hyperparameters, device, specificity="mixup", mixup_alpha=relevant_hyperparameters["mixup_alpha"], mixup_ratio=relevant_hyperparameters["mixup_ratio"])
 elif variant == "manifold_mixup":
     print("\n\nTraining with Manifold Mixup")
-    model = get_standard_model(dataset_name, device).to(device)
+    model = get_standard_model(dataset_name, device,args.pretrained).to(device)
     full_training(model, train_loader, val_loader, dataset_name, relevant_hyperparameters, device, specificity="manifold_mixup", mixup_alpha=relevant_hyperparameters["mixup_alpha"], mixup_ratio=relevant_hyperparameters["mixup_ratio"])
+
+
+
 elif variant == "mixup_vae":
     print("\n\nTraining with a VAE")
     vae_relevant_hyperparameters = mask_dict(relevant_hyperparameters, ["vae_h_dim1", "vae_h_dim2", "vae_z_dim", "vae_epochs", "random_seed"])
@@ -195,12 +198,73 @@ elif variant == "mixup_vae":
     latent_x = torch.from_numpy(latent_x).float()
     latent_y = torch.from_numpy(latent_y)
     latent_train_loader = DataLoader(torch.utils.data.TensorDataset(latent_x, latent_y), batch_size=relevant_hyperparameters["batch_size"], shuffle=True)
-    model = get_standard_model(dataset_name, device).to(device)
+    model = get_standard_model(dataset_name, device,args.pretrained).to(device)
     # Train the model with the latent codes
     full_training(model, train_loader, val_loader, dataset_name, relevant_hyperparameters, device, specificity="mixup_vae", mixup_alpha=relevant_hyperparameters["mixup_alpha"], mixup_ratio=relevant_hyperparameters["mixup_ratio"], vae_model=vae_model, latent_train_loader=latent_train_loader)
+
+
+
 elif variant == "mixup_gan":
     if dataset_name.endswith("mnist"):
-        print("not implemented")
+        print("\n\nTraining with a GAN")
+        gan_relevant_hyperparameters = mask_dict(relevant_hyperparameters, ["gan_z_dim", "gan_epochs", "random_seed"])
+        gan_hyperparameter_name = hyperparameter_to_name(gan_relevant_hyperparameters)
+        gan_latent_code_relevant_hyperparameters = mask_dict(relevant_hyperparameters, ["gan_z_dim", "gan_epochs", "random_seed", "gan_lat_opt_steps"])
+        gan_latent_code_hyperparameter_name = hyperparameter_to_name(gan_latent_code_relevant_hyperparameters)
+        gan_file_name = "./models/{}/mixup_gan/{}.pth".format(dataset_name, gan_hyperparameter_name)
+        gan_latent_code_file_name = "./augmented_datasets/{}/{}_train_latent_codes.npy".format(dataset_name, gan_latent_code_hyperparameter_name)
+        gan_latent_labels_file_name = "./augmented_datasets/{}/{}_train_latent_labels.npy".format(dataset_name, gan_latent_code_hyperparameter_name)
+        # Get the GAN model
+        gan_model = get_gan(z_dim=relevant_hyperparameters["gan_z_dim"])
+        gan_model = gan_model.to(device)
+        # Train it or load it from disk if possible
+        if file_exists(gan_file_name):
+            print("GAN model is already on disk")
+            gan_model.generator.load_state_dict(torch.load(gan_file_name))
+        else:
+            print("Training the GAN model")
+            full_gan_training(gan_model, train_loader, device, relevant_hyperparameters)
+            torch.save(gan_model.generator.state_dict(), gan_file_name)
+        # Generate the latent codes for each image of the training set or load the codes if possible
+        if file_exists(gan_latent_code_file_name) and file_exists(gan_latent_labels_file_name):
+            print("Latent codes of the training set are already stored")
+            latent_x = np.load(gan_latent_code_file_name)
+            latent_y = np.load(gan_latent_labels_file_name)
+        else:
+            pass
+            # print("Computing the latent codes of the training set")
+            # latent_x, latent_y = [], []
+            # for batch_idx, (data, target) in enumerate(train_loader):
+            #     data, target = data.to(device), target.to(device)
+            #     flat_data = data.view(-1, gan_model.x_dim)
+            #     latent_codes = gan_model.encoder(flat_data)[0]  # Take only the mean into consideration
+            #     new_images = gan_model.decoder(latent_codes)
+            #     latent_codes = torch.from_numpy(latent_codes.cpu().detach().numpy()).float().to(device)
+            #     opt_latent_codes = latent_codes.clone().detach().requires_grad_(True)
+            #     optimizer = optim.Adam([opt_latent_codes], lr=0.1)
+            #     # Optimize the latent codes in order to reconstruct the image more precisely
+            #     for i in range(gan_latent_code_relevant_hyperparameters["gan_lat_opt_steps"]):
+            #         optimizer.zero_grad()
+            #         gen = gan_model.decoder(opt_latent_codes).view(data.shape[0], DATASET_IMAGE_CHN[dataset_name], DATASET_IMAGE_DIM[dataset_name], DATASET_IMAGE_DIM[dataset_name])
+            #         loss = F.mse_loss(gen, data)
+            #         loss.backward()
+            #         optimizer.step()
+            #     latent_x.append(opt_latent_codes.cpu().detach().numpy())
+            #     latent_y.append(target.cpu().detach().numpy())
+            #     # progress_bar(batch_idx, len(train_loader))
+            # latent_x = np.concatenate(latent_x, axis=0)
+            # latent_y = np.concatenate(latent_y, axis=0)
+            # # Store the latent codes for later reuse
+            # np.save(gan_latent_code_file_name, latent_x)
+            # np.save(gan_latent_labels_file_name, latent_y)
+
+        latent_x = torch.from_numpy(latent_x).float()
+        latent_y = torch.from_numpy(latent_y)
+        latent_train_loader = DataLoader(torch.utils.data.TensorDataset(latent_x, latent_y), batch_size=relevant_hyperparameters["batch_size"], shuffle=True)
+        model = get_standard_model(dataset_name, device,args.pretrained).to(device)
+        # Train the model with the latent codes
+        full_training(model, train_loader, val_loader, dataset_name, relevant_hyperparameters, device, specificity="mixup_gan", mixup_alpha=relevant_hyperparameters["mixup_alpha"], mixup_ratio=relevant_hyperparameters["mixup_ratio"], gan_model=gan_model, latent_train_loader=latent_train_loader)
+
     else:
         latent = np.load("grad_latents_00000_50000.npy", allow_pickle=True).item()
         latent_x = []
@@ -218,7 +282,7 @@ elif variant == "mixup_gan":
         #convert to long
         latent_y = latent_y.long()
         latent_train_loader = DataLoader(torch.utils.data.TensorDataset(latent_x, latent_y), batch_size=relevant_hyperparameters["batch_size"], shuffle=True)
-        model = get_standard_model(dataset_name, device).to(device)
+        model = get_standard_model(dataset_name, device,args.pretrained).to(device)
         from sg3 import SG3Generator
         gan_model = SG3Generator(checkpoint_path='./sg2c10-32.pkl').decoder.cuda()
         # Train the model with the latent codes

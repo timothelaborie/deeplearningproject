@@ -6,6 +6,7 @@ import csv
 import torch
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
+import platform
 
 DATASET_IMAGE_DIM = {"mnist":  28, "fashionmnist": 28, "cifar10": 32, "cifar100": 32}
 DATASET_IMAGE_CHN = {"mnist":  1, "fashionmnist": 1, "cifar10": 3, "cifar100": 3}
@@ -153,6 +154,8 @@ def mask_dict(initial_dict, keys):
 
 
 def hyperparameter_to_name(hyperparameters):
+    if platform.system() == "Windows":
+        return "&".join(sorted(["{}_{}".format(k, hyperparameters[k]) for k in hyperparameters]))
     return "&".join(sorted(["{}:{}".format(k, hyperparameters[k]) for k in hyperparameters]))
 
 
