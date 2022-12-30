@@ -219,6 +219,24 @@ def gan_initializer_training(gan_initializer,gan:GAN):
 
 
 
+def feature_extractor_training(feature_extractor, train_loader):
+    device = "cuda"
+    criterion = nn.CrossEntropyLoss()
+    feature_extractor.train()
+    feature_extractor.cuda()
+    optimizer = optim.Adam(feature_extractor.parameters(), lr=0.001)
+    for epoch in range(5):
+        for batch_idx, (data, target) in enumerate(train_loader):
+            data, target = data.to(device), target.to(device)
+            optimizer.zero_grad()
+            output = feature_extractor(data)
+            loss = criterion(output, target)
+            loss.backward()
+            optimizer.step()
+            progress_bar(batch_idx, len(train_loader), 'Loss: %.3f' % loss.item())
+
+
+
 def full_gan_training(gan, train_loader, device, hyperparameters):
     pass
     # optimizer = optim.Adam(gan.parameters())

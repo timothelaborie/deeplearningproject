@@ -1,8 +1,8 @@
 from torch import optim
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
-from model import get_vae, CifarResNet, get_standard_model,get_gan,get_gan_initializer
-from train_test import full_training, full_vae_training, score_report, evaluate,full_gan_training,gan_initializer_training
+from model import get_vae, CifarResNet, get_standard_model,get_gan,get_gan_initializer,get_feature_extractor
+from train_test import full_training, full_vae_training, score_report, evaluate,full_gan_training,gan_initializer_training,feature_extractor_training
 from utils import *
 import torch
 import argparse
@@ -220,6 +220,7 @@ elif variant == "mixup_gan":
         gan_latent_code_hyperparameter_name = hyperparameter_to_name(gan_latent_code_relevant_hyperparameters)
         gan_file_name = "./models/{}/mixup_gan/{}.pth".format(dataset_name, gan_hyperparameter_name)
         gan_initializer_file_name = "./models/{}/mixup_gan/{}_initializer.pth".format(dataset_name, gan_hyperparameter_name)
+        feature_extractor_file_name = "./models/{}/mixup_gan/feature_extractor.pth".format(dataset_name)
         gan_latent_code_file_name = "./augmented_datasets/{}/{}_train_latent_codes.npy".format(dataset_name, gan_latent_code_hyperparameter_name)
         gan_latent_labels_file_name = "./augmented_datasets/{}/{}_train_latent_labels.npy".format(dataset_name, gan_latent_code_hyperparameter_name)
         # Get the GAN model
@@ -235,13 +236,14 @@ elif variant == "mixup_gan":
             torch.save(gan_model.generator.state_dict(), gan_file_name)
 
         # Generate the latent codes for each image of the training set or load the codes if possible
-        if file_exists(gan_latent_code_file_name) and file_exists(gan_latent_labels_file_name):
+        if file_exists(gan_latent_code_file_name) and file_exists(gan_latent_labels_file_name) and False:
             print("Latent codes of the training set are already stored")
             latent_x = np.load(gan_latent_code_file_name)
             latent_y = np.load(gan_latent_labels_file_name)
         else:
             print("Computing the latent codes of the training set")
             gan_initializer = get_gan_initializer().cuda()
+            feature_extractor = get_feature_extractor().cuda()
             if file_exists(gan_initializer_file_name):
                 print("gan_initializer model is already on disk")
                 gan_initializer.load_state_dict(torch.load(gan_initializer_file_name))
@@ -249,6 +251,14 @@ elif variant == "mixup_gan":
                 print("Training the gan_initializer model")
                 gan_initializer_training(gan_initializer,gan_model)
                 torch.save(gan_initializer.state_dict(), gan_initializer_file_name)
+
+            if file_exists(feature_extractor_file_name):
+                print("feature_extractor model is already on disk")
+                feature_extractor.load_state_dict(torch.load(feature_extractor_file_name))
+            else:
+                print("Training the feature_extractor model")
+                feature_extractor_training(feature_extractor,train_loader)
+                torch.save(feature_extractor.state_dict(), feature_extractor_file_name)
 
 
             latent_x, latent_y = [], []
@@ -258,7 +268,7 @@ elif variant == "mixup_gan":
                 new_images = gan_model.generator(latent_codes)
                 latent_codes = torch.from_numpy(latent_codes.cpu().detach().numpy()).float().to(device)
                 opt_latent_codes = latent_codes.clone().detach().requires_grad_(True)
-                optimizer = optim.Adam([opt_latent_codes], lr=0.1)
+                optimizer = optim.Adam([opt_latent_codes], lr=0.001)
 
                 #plot the original images and the reconstructed images
                 with torch.no_grad():
@@ -272,7 +282,7 @@ elif variant == "mixup_gan":
                 for i in range(gan_latent_code_relevant_hyperparameters["gan_lat_opt_steps"]):
                     optimizer.zero_grad()
                     gen = gan_model.generator(opt_latent_codes)
-                    loss = F.mse_loss(gen, data)
+                    loss = F.mse_loss(feature_extractor.extract_features(gen), feature_extractor.extract_features(data))
                     loss.backward()
                     optimizer.step()
                 latent_x.append(opt_latent_codes.cpu().detach().numpy())
@@ -284,7 +294,7 @@ elif variant == "mixup_gan":
                     fig, ax = plt.subplots(2, 10, figsize=(10, 2))
                     for i in range(10):
                         ax[0][i].imshow(data[i].cpu().detach().numpy().transpose(1,2,0))
-                        ax[1][i].imshow(gen[i].cpu().detach().numpy().transpose(1,2,0))
+                        ax[1][i].imshow(gan_model.generator(opt_latent_codes)[i].cpu().detach().numpy().transpose(1,2,0))
                     plt.show()
 
                 break
