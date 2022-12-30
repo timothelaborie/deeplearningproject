@@ -154,9 +154,7 @@ def mask_dict(initial_dict, keys):
 
 
 def hyperparameter_to_name(hyperparameters):
-    if platform.system() == "Windows":
-        return "&".join(sorted(["{}_{}".format(k, hyperparameters[k]) for k in hyperparameters]))
-    return "&".join(sorted(["{}:{}".format(k, hyperparameters[k]) for k in hyperparameters]))
+    return "&".join(sorted(["{}꞉{}".format(k, hyperparameters[k]) for k in hyperparameters]))
 
 
 def report_results():
