@@ -4,11 +4,15 @@ from torch import optim
 from torch.autograd import Variable
 import torch
 import torch.nn as nn
-from torch.optim.lr_scheduler import StepLR, ReduceLROnPlateau
+from torch.optim.lr_scheduler import StepLR
 import torchvision.transforms.functional as F
+import torch.nn.functional as F2
 from deepfool import deepfool
 from utils import progress_bar, mixup_criterion, mixup_data, DATASET_IMAGE_CHN, DATASET_IMAGE_DIM
-from model import vae_loss_function
+from model import vae_loss_function,GAN
+from torch.utils.data import DataLoader
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
 
 
 def train(model, device, image_train_loader, dataset_name, optimizer, hyperparameters, specificity="", mixup_alpha=1.0, mixup_ratio=1.0, vae_model=None,gan_model=None, latent_train_loader=None):
@@ -168,7 +172,50 @@ def full_vae_training(vae, train_loader, val_loader, device, hyperparameters):
 
 
 
+#trains the gan_initializer model (a standard convnet) to find the nearest latent vector to a given image
+def gan_initializer_training(gan_initializer,gan:GAN):
+    device = "cuda"
+    batch_size = 16
+    # generate batches of images with their corresponding latent vectors as the labels
+    X = []
+    y = []
+    sample_batches = 5000
+    with torch.no_grad():
+        for i in range(sample_batches):
+            z = torch.randn(batch_size, gan.z_dim,1,1).cuda()
+            sample = gan.generator(z)
+            image = sample.view(batch_size, 1, 28, 28).cpu().numpy()
+            X.append(image)
+            y.append(z.cpu().numpy())
+            progress_bar(i, sample_batches, 'Generating samples ...')
 
+            #save a sample
+            # image = np.transpose(image, (0, 2, 3, 1))
+            # fig, ax = plt.subplots(1, 5, figsize=(20, 4))
+            # for i in range(5):
+            #     print(z[i,:10])
+            #     ax[i].imshow(image[i])
+            # plt.savefig("gan_initializer_training_sample.png")
+
+        X = np.concatenate(X, axis=0)
+        y = np.concatenate(y, axis=0)
+
+    print(X.shape, y.shape)
+    X = torch.from_numpy(X).float()
+    y = torch.from_numpy(y).float()
+    gan_initializer.train()
+    gan_initializer.cuda()
+    optimizer = optim.Adam(gan_initializer.parameters(), lr=0.001)
+    train_loader = DataLoader(torch.utils.data.TensorDataset(X,y), batch_size=batch_size, shuffle=True)
+    for epoch in range(5):
+        for batch_idx, (data, target) in enumerate(train_loader):
+            data, target = data.to(device), target.to(device)
+            optimizer.zero_grad()
+            output = gan_initializer(data)
+            loss = F2.mse_loss(output, target)
+            loss.backward()
+            optimizer.step()
+            progress_bar(batch_idx, len(train_loader), 'Loss: %.3f' % loss.item())
 
 
 

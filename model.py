@@ -26,6 +26,62 @@ def get_gan(z_dim):
     return GAN(z_dim=z_dim)
 
 
+def get_gan_initializer():
+    return GAN_initializer()
+
+class GAN_initializer(nn.Module):
+    def __init__(self):
+        super(GAN_initializer,self).__init__()
+        self.conv1 = nn.Conv2d(1, 16, 3, 1)
+        self.conv2 = nn.Conv2d(16, 32, 3, 1)
+        self.dropout = nn.Dropout(0.5)
+        self.fc1 = nn.Linear(9216 // 2, 128)
+        self.fc2 = nn.Linear(128, 1024)
+
+    def forward(self, x, target=None, mixup_hidden=False, mixup_alpha=1.0, layer_mix=None):
+        if mixup_hidden:
+            if layer_mix is None:
+                layer_mix = random.randint(0, 3)
+            out = x
+
+            if layer_mix == 0:
+                out, y_a, y_b, lam = mixup_data(out, target, self.device, mixup_alpha)
+            out = self.conv1(out)
+            out = F.relu(out)
+
+            if layer_mix == 1:
+                out, y_a, y_b, lam = mixup_data(out, target, self.device, mixup_alpha)
+            out = self.conv2(out)
+            out = F.relu(out)
+            out = F.max_pool2d(out, 2)
+            out = torch.flatten(out, 1)
+
+            if layer_mix == 2:
+                out, y_a, y_b, lam = mixup_data(out, target, self.device, mixup_alpha)
+            out = self.fc1(out)
+            out = F.relu(out)
+            out = self.dropout(out)
+
+            if layer_mix == 3:
+                out, y_a, y_b, lam = mixup_data(out, target, self.device, mixup_alpha)
+            out = self.fc2(out)
+            out = self.softmax(out)
+            return out, y_a, y_b, lam
+        else:
+            x = self.conv1(x)
+            x = F.relu(x)
+            x = self.conv2(x)
+            x = F.relu(x)
+            x = F.max_pool2d(x, 2)
+            x = torch.flatten(x, 1)
+            x = self.fc1(x)
+            x = F.relu(x)
+            x = self.dropout(x)
+            x = self.fc2(x)
+            x = x.view(-1, 1024, 1, 1)
+            return x
+
+
 def conv3x3(in_planes, out_planes, stride=1, groups=1, dilation=1):
     """3x3 convolution with padding"""
     return nn.Conv2d(
@@ -325,7 +381,7 @@ class CifarResNet(nn.Module):
 
 
 class MnistNet(nn.Module):
-    def __init__(self, device):
+    def __init__(self, device="cuda"):
         super(MnistNet, self).__init__()
         self.conv1 = nn.Conv2d(1, 16, 3, 1)
         self.conv2 = nn.Conv2d(16, 32, 3, 1)
@@ -508,12 +564,10 @@ def vae_loss_function(recon_x, x, mu, log_var, x_dim):
 
 
 class Generator(nn.Module):
-    def __init__(self, args):
+    def __init__(self, z_dim):
         super().__init__()
 
-        self.args = args
-
-        ls = self.args.z_dim
+        ls = z_dim
         
         self.seq = nn.Sequential(
             nn.ConvTranspose2d(ls, int(ls/2), kernel_size=3, stride=2, padding=0, bias=False),
@@ -539,12 +593,9 @@ class Generator(nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self, args):
+    def __init__(self, z_dim):
         super().__init__()
-
-        self.args = args
-
-        ls = self.args.latent_size
+        ls = z_dim
         
         self.seq = nn.Sequential(
             nn.Conv2d(1, int(ls/16), kernel_size=3, stride=2, padding=1, bias=False),
@@ -569,10 +620,11 @@ class Discriminator(nn.Module):
 
 
 class GAN(nn.Module):
-    def __init__(self, args):
+    def __init__(self, z_dim):
         super().__init__()
-        self.generator = Generator(args)
-        self.discriminator = Discriminator(args)
+        self.z_dim = z_dim
+        self.generator:Generator = Generator(z_dim)
+        self.discriminator:Discriminator = Discriminator(z_dim)
 
     def forward(self, x):
         return self.generator(x)
