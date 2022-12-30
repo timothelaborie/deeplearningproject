@@ -13,6 +13,7 @@ from torch.utils.data.dataset import Subset
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 
+
 # Very important : check whether DeepFool is evaluated or not
 
 # Hyperparameter that affect the training of the different variants
@@ -52,7 +53,7 @@ parser.add_argument('--vae_z_dim', type=int, default=16, help="dimension of the 
 parser.add_argument('--vae_lat_opt_steps', type=int, default=0, help="number of steps of the optimization of the latent codes of the VAE")
 parser.add_argument('--gan_epochs', type=int, default=8, help="total epochs to train the GAN")
 parser.add_argument('--gan_z_dim', type=int, default=1024, help="dimension of the latent code for the GAN")
-parser.add_argument('--gan_lat_opt_steps', type=int, default=10, help="number of steps of the optimization of the latent codes of the GAN")
+parser.add_argument('--gan_lat_opt_steps', type=int, default=1000, help="number of steps of the optimization of the latent codes of the GAN")
 parser.add_argument('--momentum', type=float, default=0.9, help="momentum for sgd or beta1 for adam")
 parser.add_argument('--weight_decay', type=float, default=1e-4, help="weight decay")
 parser.add_argument('--gamma', type=float, default=0.1, help="lr factor")
@@ -236,7 +237,7 @@ elif variant == "mixup_gan":
             torch.save(gan_model.generator.state_dict(), gan_file_name)
 
         # Generate the latent codes for each image of the training set or load the codes if possible
-        if file_exists(gan_latent_code_file_name) and file_exists(gan_latent_labels_file_name) and False:
+        if file_exists(gan_latent_code_file_name) and file_exists(gan_latent_labels_file_name):
             print("Latent codes of the training set are already stored")
             latent_x = np.load(gan_latent_code_file_name)
             latent_y = np.load(gan_latent_labels_file_name)
@@ -268,36 +269,45 @@ elif variant == "mixup_gan":
                 new_images = gan_model.generator(latent_codes)
                 latent_codes = torch.from_numpy(latent_codes.cpu().detach().numpy()).float().to(device)
                 opt_latent_codes = latent_codes.clone().detach().requires_grad_(True)
-                optimizer = optim.Adam([opt_latent_codes], lr=0.001)
+                # optimizer = optim.Adam([opt_latent_codes], lr=0.001)
+                optimizer = torch.optim.AdamW([opt_latent_codes], betas=(0.95, 0.999), lr=3e-2)
 
                 #plot the original images and the reconstructed images
-                with torch.no_grad():
-                    fig, ax = plt.subplots(2, 10, figsize=(10, 2))
-                    for i in range(10):
-                        ax[0][i].imshow(data[i].cpu().detach().numpy().transpose(1,2,0))
-                        ax[1][i].imshow(gan_model.generator(opt_latent_codes)[i].cpu().detach().numpy().transpose(1,2,0))
-                    plt.show()
+                # with torch.no_grad():
+                #     fig, ax = plt.subplots(2, 10, figsize=(10, 2))
+                #     for i in range(10):
+                #         ax[0][i].imshow(data[i].cpu().detach().numpy().transpose(1,2,0))
+                #         ax[1][i].imshow(gan_model.generator(opt_latent_codes)[i].cpu().detach().numpy().transpose(1,2,0))
+                #     plt.show()
 
                 # Optimize the latent codes in order to reconstruct the image more precisely
                 for i in range(gan_latent_code_relevant_hyperparameters["gan_lat_opt_steps"]):
                     optimizer.zero_grad()
                     gen = gan_model.generator(opt_latent_codes)
-                    loss = F.mse_loss(feature_extractor.extract_features(gen), feature_extractor.extract_features(data))
+                    loss = F.mse_loss(feature_extractor.extract_features((gen+1)/2), feature_extractor.extract_features(data))
+                    # loss = F.mse_loss((gen+1)/2, data)
                     loss.backward()
                     optimizer.step()
                 latent_x.append(opt_latent_codes.cpu().detach().numpy())
                 latent_y.append(target.cpu().detach().numpy())
                 progress_bar(batch_idx, len(train_loader), "Computing latent codes")
 
-                #plot the original images and the reconstructed images
-                with torch.no_grad():
-                    fig, ax = plt.subplots(2, 10, figsize=(10, 2))
-                    for i in range(10):
-                        ax[0][i].imshow(data[i].cpu().detach().numpy().transpose(1,2,0))
-                        ax[1][i].imshow(gan_model.generator(opt_latent_codes)[i].cpu().detach().numpy().transpose(1,2,0))
-                    plt.show()
+                # plot the original images and the reconstructed images
+                # with torch.no_grad():
+                #     fig, ax = plt.subplots(2, 10, figsize=(10, 2))
+                #     for i in range(10):
+                #         img1 = data[i].cpu().detach().numpy().transpose(1,2,0)
+                #         img2 = gan_model.generator(opt_latent_codes)[i].cpu().detach().numpy().transpose(1,2,0)
+                #         img2 += 1
+                #         img2 /= 2
+                #         ax[0][i].imshow(img1,cmap='Greys',  interpolation='nearest')
+                #         ax[1][i].imshow(img2,cmap='Greys',  interpolation='nearest')
+                #         print("img1.min()", img1.min(), "img1.max()", img1.max(), "img1.mean()", img1.mean(), "img1.std()", img1.std())
+                #         print("img2.min()", img2.min(), "img2.max()", img2.max(), "img2.mean()", img2.mean(), "img2.std()", img2.std())
+                #     plt.show()
+                # if batch_idx == 1:
+                #     break
 
-                break
             latent_x = np.concatenate(latent_x, axis=0)
             latent_y = np.concatenate(latent_y, axis=0)
             # Store the latent codes for later reuse
@@ -308,9 +318,10 @@ elif variant == "mixup_gan":
             print("latent_y.shape", latent_y.shape)
             
  
-        assert False
+
         latent_x = torch.from_numpy(latent_x).float()
-        latent_y = torch.from_numpy(latent_y)
+        latent_y = torch.from_numpy(latent_y).long()
+        assert False
         latent_train_loader = DataLoader(torch.utils.data.TensorDataset(latent_x, latent_y), batch_size=relevant_hyperparameters["batch_size"], shuffle=True)
         model = get_standard_model(dataset_name, device,args.pretrained).to(device)
         # Train the model with the latent codes
