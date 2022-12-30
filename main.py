@@ -16,8 +16,8 @@ from torch.utils.data.dataset import Subset
 # Hyperparameter that affect the training of the different variants
 RELEVANT_HYPERPARAMETER_NAMES = {
     "standard": ["epochs", "batch_size", "learning_rate", "random_seed", "momentum", "optim", "weight_decay", "gamma"],
-    "mixup": ["epochs", "batch_size", "learning_rate", "mixup_alpha", "mixup_ratio", "random_seed"],
-    "manifold_mixup": ["epochs", "batch_size", "learning_rate", "mixup_alpha", "mixup_ratio", "random_seed"],
+    "mixup": ["epochs", "batch_size", "learning_rate", "mixup_alpha", "mixup_ratio", "random_seed", "momentum", "optim", "weight_decay", "gamma"],
+    "manifold_mixup": ["epochs", "batch_size", "learning_rate", "mixup_alpha", "mixup_ratio", "random_seed", "momentum", "optim", "weight_decay", "gamma"],
     "mixup_vae": ["epochs", "batch_size", "learning_rate", "mixup_alpha", "mixup_ratio", "random_seed", "vae_epochs", "vae_sharp", "vae_h_dim1", "vae_h_dim2", "vae_z_dim", "vae_lat_opt_steps"],
     "mixup_gan": ["epochs", "batch_size", "learning_rate", "mixup_alpha", "mixup_ratio", "random_seed", "momentum", "optim", "weight_decay", "gamma"],
 }
@@ -271,7 +271,7 @@ elif variant == "mixup_gan":
         full_training(model, train_loader, val_loader, dataset_name, relevant_hyperparameters, device, specificity="mixup_gan", mixup_alpha=relevant_hyperparameters["mixup_alpha"], mixup_ratio=relevant_hyperparameters["mixup_ratio"], gan_model=gan_model, latent_train_loader=latent_train_loader)
 
     else:
-        latent = np.load("/home/ben/dl_inversion_data/grad_latents_00000_50000.npy", allow_pickle=True).item()
+        latent = np.load("/cluster/home/bgunders/dl_inversion_data/grad_latents_00000_50000.npy", allow_pickle=True).item()
         latent_x = []
         latent_y = []
         for (key,value) in latent.items():
@@ -289,7 +289,7 @@ elif variant == "mixup_gan":
         latent_train_loader = DataLoader(torch.utils.data.TensorDataset(latent_x, latent_y), batch_size=relevant_hyperparameters["batch_size"], shuffle=True)
         model = get_standard_model(dataset_name, device,args.pretrained).to(device)
         from sg3 import SG3Generator
-        gan_model = SG3Generator(checkpoint_path='/home/ben/dl_inversion_data/sg2c10-32.pkl').decoder.cuda()
+        gan_model = SG3Generator(checkpoint_path='/cluster/home/bgunders/dl_inversion_data/sg2c10-32.pkl').decoder.cuda()
         # Train the model with the latent codes
         full_training(model, train_loader, val_loader, dataset_name, relevant_hyperparameters, device, specificity="mixup_gan", mixup_alpha=relevant_hyperparameters["mixup_alpha"], mixup_ratio=relevant_hyperparameters["mixup_ratio"], gan_model=gan_model, latent_train_loader=latent_train_loader)
 else:
