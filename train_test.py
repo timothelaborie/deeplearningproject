@@ -4,7 +4,7 @@ from torch import optim
 from torch.autograd import Variable
 import torch
 import torch.nn as nn
-from torch.optim.lr_scheduler import StepLR
+from torch.optim.lr_scheduler import StepLR,ReduceLROnPlateau
 import torchvision.transforms.functional as F
 import torch.nn.functional as F2
 from deepfool import deepfool
