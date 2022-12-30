@@ -2,7 +2,7 @@ import random
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torchvision.models import resnet18, ResNet18_Weights
+# from torchvision.models import resnet18, ResNet18_Weights
 import copy
 
 from utils import mixup_data
@@ -22,16 +22,8 @@ def get_vae(dataset_name, h_dim1, h_dim2, z_dim):
         return VAE(x_dim=32*32*3, h_dim1=h_dim1, h_dim2=h_dim2, z_dim=z_dim)
 
 
-
 def get_gan(z_dim):
     return GAN(z_dim=z_dim)
-
-
-
-
-
-
-
 
 
 def conv3x3(in_planes, out_planes, stride=1, groups=1, dilation=1):
@@ -165,6 +157,7 @@ class ResNet(nn.Module):
         width_per_group=64,
         replace_stride_with_dilation=None,
         norm_layer=None,
+        device=None
     ):
         super(ResNet, self).__init__()
         if norm_layer is None:
@@ -223,6 +216,7 @@ class ResNet(nn.Module):
                     nn.init.constant_(m.bn3.weight, 0)
                 elif isinstance(m, BasicBlock):
                     nn.init.constant_(m.bn2.weight, 0)
+        self.device = device
 
     def _make_layer(self, block, planes, blocks, stride=1, dilate=False):
         norm_layer = self._norm_layer
@@ -265,40 +259,52 @@ class ResNet(nn.Module):
 
         return nn.Sequential(*layers)
 
-    def forward(self, x):
-        x = self.conv1(x)
-        x = self.bn1(x)
-        x = self.relu(x)
-        x = self.maxpool(x)
-
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
-        x = self.layer4(x)
-
-        x = self.avgpool(x)
-        x = x.reshape(x.size(0), -1)
-        x = self.fc(x)
-
-        return x
-
-
-
-
-
-
-
-
-
-
-
-
+    def forward(self, x, target=None, mixup_hidden=False, mixup_alpha=1.0, layer_mix=None):
+        if mixup_hidden:
+            if layer_mix is None:
+                layer_mix = random.randint(0, 4)
+            out = x
+            if layer_mix == 0:
+                out, y_a, y_b, lam = mixup_data(out, target, self.device, mixup_alpha)
+            out = self.conv1(out)
+            out = self.bn1(out)
+            out = self.relu(out)
+            out = self.maxpool(out)
+            if layer_mix == 1:
+                out, y_a, y_b, lam = mixup_data(out, target, self.device, mixup_alpha)
+            out = self.layer1(out)
+            if layer_mix == 2:
+                out, y_a, y_b, lam = mixup_data(out, target, self.device, mixup_alpha)
+            out = self.layer2(out)
+            if layer_mix == 3:
+                out, y_a, y_b, lam = mixup_data(out, target, self.device, mixup_alpha)
+            out = self.layer3(out)
+            if layer_mix == 4:
+                out, y_a, y_b, lam = mixup_data(out, target, self.device, mixup_alpha)
+            out = self.layer4(out)
+            out = self.avgpool(out)
+            out = out.reshape(out.size(0), -1)
+            out = self.fc(out)
+            return out, y_a, y_b, lam
+        else:
+            x = self.conv1(x)
+            x = self.bn1(x)
+            x = self.relu(x)
+            x = self.maxpool(x)
+            x = self.layer1(x)
+            x = self.layer2(x)
+            x = self.layer3(x)
+            x = self.layer4(x)
+            x = self.avgpool(x)
+            x = x.reshape(x.size(0), -1)
+            x = self.fc(x)
+            return x
 
 
 class CifarResNet(nn.Module):
-    def __init__(self,device,n_out, pretrained):
+    def __init__(self, device, n_out, pretrained):
         super(CifarResNet, self).__init__()
-        self.model = ResNet(BasicBlock, [2, 2, 2, 2])
+        self.model = ResNet(BasicBlock, [2, 2, 2, 2], device=device)
         if pretrained:
             print("Loading pretrained model")
             self.model.load_state_dict(torch.load("./models/cifar10/standard/resnet18.pt"))
@@ -306,13 +312,17 @@ class CifarResNet(nn.Module):
         self.feature_extractor.fc = nn.Identity()
         self.classifier = copy.deepcopy(self.model.fc)
         del self.model
-        
 
-    def forward(self, x):
-        x = self.feature_extractor(x)
-        x = self.classifier(x)
+    def forward(self, x, target=None, mixup_hidden=False, mixup_alpha=1.0, layer_mix=None):
+        if mixup_hidden:
+            out, y_a, y_b, lam = self.feature_extractor(x, target, mixup_hidden, mixup_alpha, layer_mix)
+            out = self.classifier(out)
+            return out, y_a, y_b, lam
+        else:
+            x = self.feature_extractor(x)
+            x = self.classifier(x)
+            return x
 
-        return x
 
 class MnistNet(nn.Module):
     def __init__(self, device):
@@ -368,7 +378,7 @@ class MnistNet(nn.Module):
             # x = self.softmax(x)
             return x
 
-
+'''
 class CifarNet(nn.Module):
     def __init__(self, device, n_out):
         super(CifarNet, self).__init__()
@@ -451,7 +461,7 @@ class CifarNet(nn.Module):
             x = self.fc_layer_1(x)
             x = self.fc_layer_2(x)
             x = self.fc_layer_3(x)
-            return x
+            return x'''
 
 
 class VAE(nn.Module):
@@ -495,9 +505,6 @@ def vae_loss_function(recon_x, x, mu, log_var, x_dim):
     bce = F.binary_cross_entropy(recon_x, x.view(-1, x_dim), reduction='sum')
     kld = -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp())
     return bce + kld
-
-
-
 
 
 class Generator(nn.Module):

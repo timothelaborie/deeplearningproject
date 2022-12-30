@@ -15,15 +15,16 @@ from torch.utils.data.dataset import Subset
 
 # Hyperparameter that affect the training of the different variants
 RELEVANT_HYPERPARAMETER_NAMES = {
-    "standard": ["epochs", "batch_size", "learning_rate", "random_seed"],
+    "standard": ["epochs", "batch_size", "learning_rate", "random_seed", "momentum", "optim", "weight_decay", "gamma"],
     "mixup": ["epochs", "batch_size", "learning_rate", "mixup_alpha", "mixup_ratio", "random_seed"],
     "manifold_mixup": ["epochs", "batch_size", "learning_rate", "mixup_alpha", "mixup_ratio", "random_seed"],
     "mixup_vae": ["epochs", "batch_size", "learning_rate", "mixup_alpha", "mixup_ratio", "random_seed", "vae_epochs", "vae_sharp", "vae_h_dim1", "vae_h_dim2", "vae_z_dim", "vae_lat_opt_steps"],
-    "mixup_gan": ["epochs", "batch_size", "learning_rate", "mixup_alpha", "mixup_ratio", "random_seed", "gan_epochs", "gan_z_dim", "gan_lat_opt_steps"],
+    "mixup_gan": ["epochs", "batch_size", "learning_rate", "mixup_alpha", "mixup_ratio", "random_seed", "momentum", "optim", "weight_decay", "gamma"],
 }
 
 DATASETS = ["mnist", "fashionmnist", "cifar10", "cifar100"]
 VARIANTS = ["standard", "mixup", "manifold_mixup", "mixup_vae", "mixup_gan"]
+OPTIMS = ["sgd", "adam"]
 
 parser = argparse.ArgumentParser(description="Experiment for the DeepLearning project")
 
@@ -35,9 +36,9 @@ parser.add_argument('--results', '-r', action='store_true', help='show the resul
 parser.add_argument('--dataset', choices=DATASETS, default="mnist", help="dataset to run the experiment on")
 parser.add_argument('--variant', choices=VARIANTS, default="standard", help="training and model variant used")
 parser.add_argument('--pretrained', type=int, default=0, help="use cifar10 pre-trained model")
-parser.add_argument('--epochs', type=int, default=10, help="total epochs to run")
+parser.add_argument('--epochs', type=int, default=180, help="total epochs to run")
 parser.add_argument('--batch_size', type=int, default=16, help="batch size")
-parser.add_argument('--learning_rate', type=float, default=0.001, help="learning rate")
+parser.add_argument('--learning_rate', type=float, default=0.1, help="learning rate")
 parser.add_argument('--mixup_alpha', type=float, default=1.0, help="parameter of the Beta distribution to sample lambda for mixup")
 parser.add_argument('--mixup_ratio', type=float, default=1.0, help="ratio of the mixed up data used to train the classifier, the rest is the standard dataset")
 parser.add_argument('--random_seed', type=int, default=0, help="random seed")
@@ -50,6 +51,10 @@ parser.add_argument('--vae_lat_opt_steps', type=int, default=0, help="number of 
 parser.add_argument('--gan_epochs', type=int, default=8, help="total epochs to train the GAN")
 parser.add_argument('--gan_z_dim', type=int, default=100, help="dimension of the latent code for the GAN")
 parser.add_argument('--gan_lat_opt_steps', type=int, default=5, help="number of steps of the optimization of the latent codes of the GAN")
+parser.add_argument('--momentum', type=float, default=0.9, help="momentum for sgd or beta1 for adam")
+parser.add_argument('--weight_decay', type=float, default=1e-4, help="weight decay")
+parser.add_argument('--gamma', type=float, default=0.1, help="lr factor")
+parser.add_argument('--optim', choices=OPTIMS, default="sgd", help="optimizer")
 
 args = parser.parse_args()
 
@@ -266,7 +271,7 @@ elif variant == "mixup_gan":
         full_training(model, train_loader, val_loader, dataset_name, relevant_hyperparameters, device, specificity="mixup_gan", mixup_alpha=relevant_hyperparameters["mixup_alpha"], mixup_ratio=relevant_hyperparameters["mixup_ratio"], gan_model=gan_model, latent_train_loader=latent_train_loader)
 
     else:
-        latent = np.load("grad_latents_00000_50000.npy", allow_pickle=True).item()
+        latent = np.load("/home/ben/dl_inversion_data/grad_latents_00000_50000.npy", allow_pickle=True).item()
         latent_x = []
         latent_y = []
         for (key,value) in latent.items():
@@ -284,7 +289,7 @@ elif variant == "mixup_gan":
         latent_train_loader = DataLoader(torch.utils.data.TensorDataset(latent_x, latent_y), batch_size=relevant_hyperparameters["batch_size"], shuffle=True)
         model = get_standard_model(dataset_name, device,args.pretrained).to(device)
         from sg3 import SG3Generator
-        gan_model = SG3Generator(checkpoint_path='./sg2c10-32.pkl').decoder.cuda()
+        gan_model = SG3Generator(checkpoint_path='/home/ben/dl_inversion_data/sg2c10-32.pkl').decoder.cuda()
         # Train the model with the latent codes
         full_training(model, train_loader, val_loader, dataset_name, relevant_hyperparameters, device, specificity="mixup_gan", mixup_alpha=relevant_hyperparameters["mixup_alpha"], mixup_ratio=relevant_hyperparameters["mixup_ratio"], gan_model=gan_model, latent_train_loader=latent_train_loader)
 else:

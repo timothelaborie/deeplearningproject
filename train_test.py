@@ -4,7 +4,7 @@ from torch import optim
 from torch.autograd import Variable
 import torch
 import torch.nn as nn
-from torch.optim.lr_scheduler import StepLR
+from torch.optim.lr_scheduler import StepLR, ReduceLROnPlateau
 import torchvision.transforms.functional as F
 from deepfool import deepfool
 from utils import progress_bar, mixup_criterion, mixup_data, DATASET_IMAGE_CHN, DATASET_IMAGE_DIM
@@ -108,15 +108,20 @@ def evaluate(model, device, data_loader, verbose=True):
 
 
 def full_training(model, image_train_loader, val_loader, dataset_name, hyperparameters, device, specificity="", mixup_alpha=1.0, mixup_ratio=1.0, vae_model=None,gan_model=None, latent_train_loader=None):
-    optimizer = optim.Adam(model.parameters(), lr=hyperparameters["learning_rate"])
-    scheduler = StepLR(optimizer, step_size=1, gamma=0.7)
+    if hyperparameters["optim"] == "sgd":
+        print("sgd")
+        optimizer = optim.SGD(model.parameters(), lr=hyperparameters["learning_rate"], momentum=hyperparameters["momentum"], weight_decay=hyperparameters["weight_decay"])
+        scheduler = ReduceLROnPlateau(optimizer, 'min', factor=hyperparameters["gamma"], patience=10)
+    else:
+        optimizer = optim.Adam(model.parameters(), lr=hyperparameters["learning_rate"])
+        scheduler = StepLR(optimizer, step_size=1, gamma=0.7)
     for epoch in range(hyperparameters["epochs"]):
         print("Epoch {}/{}".format(epoch, hyperparameters["epochs"]))
         print("Training ...")
         train(model, device, image_train_loader, dataset_name, optimizer, hyperparameters, specificity=specificity, mixup_alpha=mixup_alpha, mixup_ratio=mixup_ratio, vae_model=vae_model,gan_model=gan_model, latent_train_loader=latent_train_loader)
         print("Evaluation on the validation set ...")
-        evaluate(model, device, val_loader)
-        scheduler.step()
+        acc, loss = evaluate(model, device, val_loader)
+        scheduler.step(loss)
         print("\n")
 
 
