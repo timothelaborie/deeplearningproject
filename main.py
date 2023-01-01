@@ -344,12 +344,12 @@ elif variant == "mixup_gan":
         print("latent_x.shape", latent_x.shape)
         print("latent_y.shape", latent_y.shape)
 
-        # mse_list = []
+        mse_list = []
         # # filter out images so only the best half are used
         print("filtering latent codes")
         latent_x_filtered = []
         latent_y_filtered = []
-        median = 0.9647171497344971
+        median = 0.16574298590421677
         with torch.no_grad():
             temp_loader = DataLoader(train_dataset, batch_size=1, shuffle=False)
             i = 0
@@ -362,7 +362,7 @@ elif variant == "mixup_gan":
                 if mse.item() < median:
                     latent_x_filtered.append(z.cpu().detach().numpy())
                     latent_y_filtered.append(y.cpu().detach().numpy())
-                # mse_list.append(mse.item())
+                mse_list.append(mse.item())
                 # ax[0].imshow(img.cpu().detach().numpy()[0].transpose(1,2,0),cmap='Greys',  interpolation='nearest')
                 # ax[1].imshow(recon.cpu().detach().numpy()[0].transpose(1,2,0),cmap='Greys',  interpolation='nearest')
                 # plt.show()
@@ -371,11 +371,11 @@ elif variant == "mixup_gan":
                 #     break
 
 
-        # mse_list = np.array(mse_list)
-        # mse_list = np.sort(mse_list)
+        mse_list = np.array(mse_list)
+        mse_list = np.sort(mse_list)
         # plt.plot(mse_list)
         # plt.show()
-        # print("mse_list.min()", mse_list.min(), "mse_list.max()", mse_list.max(), "mse_list.mean()", mse_list.mean(), "mse_list.median()", np.median(mse_list))
+        print("mse_list.min()", mse_list.min(), "mse_list.max()", mse_list.max(), "mse_list.mean()", mse_list.mean(), "mse_list.median()", np.median(mse_list))
            
 
         latent_x_filtered = torch.from_numpy(np.array(latent_x_filtered)).float()

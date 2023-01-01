@@ -44,6 +44,8 @@ def get_dataset(dataset_name, hyperparameters=None, blur=False):
                 train, _ = torch.utils.data.random_split(train, DATASETS_TRAIN_SPLITS[dataset_name], generator=torch.Generator().manual_seed(42))
                 test = DATASETS_CALLS[dataset_name]('./data', train=False, download=True, transform=test_transforms)
                 return train, val, test
+    if dataset_name.startswith("mnist"):
+        transformations.append(transforms.Normalize((0.5,), (0.5,)))
     if blur:
         transformations.append(transforms.GaussianBlur(5, 5))
     train = DATASETS_CALLS[dataset_name]('./data', train=True, download=True, transform=transforms.Compose(transformations))
