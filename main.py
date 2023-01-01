@@ -57,8 +57,8 @@ parser.add_argument('--vae_lat_opt_steps', type=int, default=0, help="number of 
 parser.add_argument('--gan_epochs', type=int, default=8, help="total epochs to train the GAN")
 parser.add_argument('--gan_z_dim', type=int, default=1024, help="dimension of the latent code for the GAN")
 parser.add_argument('--gan_lat_opt_steps', type=int, default=1000, help="number of steps of the optimization of the latent codes of the GAN")
-parser.add_argument('--momentum', type=float, default=0.9, help="momentum for sgd or beta1 for adam")
-parser.add_argument('--weight_decay', type=float, default=1e-4, help="weight decay")
+parser.add_argument('--momentum', type=float, default=0.9, help="momentum for SGD")
+parser.add_argument('--weight_decay', type=float, default=1e-4, help="weight decay for SGD")
 parser.add_argument('--gamma', type=float, default=0.1, help="lr factor")
 parser.add_argument('--optim', choices=OPTIMS, default="sgd", help="optimizer")
 

@@ -123,7 +123,7 @@ def full_training(model, image_train_loader, val_loader, dataset_name, hyperpara
         scheduler = ReduceLROnPlateau(optimizer, 'min', factor=hyperparameters["gamma"], patience=10)
     else:
         optimizer = optim.Adam(model.parameters(), lr=hyperparameters["learning_rate"])
-        scheduler = StepLR(optimizer, step_size=1, gamma=0.7)
+        scheduler = StepLR(optimizer, step_size=1, gamma=hyperparameters["gamma"])
     for epoch in range(hyperparameters["epochs"]):
         print("Epoch {}/{}".format(epoch, hyperparameters["epochs"]))
         print("Training ...")
