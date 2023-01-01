@@ -21,16 +21,17 @@ display = False
 
 # Hyperparameter that affect the training of the different variants
 RELEVANT_HYPERPARAMETER_NAMES = {
-    "standard": ["epochs", "batch_size", "learning_rate", "random_seed", "momentum", "optim", "weight_decay", "gamma"],
-    "mixup": ["epochs", "batch_size", "learning_rate", "mixup_alpha", "mixup_ratio", "random_seed", "momentum", "optim", "weight_decay", "gamma"],
-    "manifold_mixup": ["epochs", "batch_size", "learning_rate", "mixup_alpha", "mixup_ratio", "random_seed", "momentum", "optim", "weight_decay", "gamma"],
-    "mixup_vae": ["epochs", "batch_size", "learning_rate", "mixup_alpha", "mixup_ratio", "random_seed", "vae_epochs", "vae_sharp", "vae_h_dim1", "vae_h_dim2", "vae_z_dim", "vae_lat_opt_steps"],
-    "mixup_gan": ["epochs", "batch_size", "learning_rate", "mixup_alpha", "mixup_ratio", "random_seed", "momentum", "optim", "weight_decay", "gamma","gan_z_dim","gan_lat_opt_steps","gan_epochs"],
+    "standard": ["epochs", "batch_size", "learning_rate", "random_seed", "momentum", "optim", "weight_decay", "gamma", "augment"],
+    "mixup": ["epochs", "batch_size", "learning_rate", "mixup_alpha", "mixup_ratio", "random_seed", "momentum", "optim", "weight_decay", "gamma", "augment"],
+    "manifold_mixup": ["epochs", "batch_size", "learning_rate", "mixup_alpha", "mixup_ratio", "random_seed", "momentum", "optim", "weight_decay", "gamma", "augment"],
+    "mixup_vae": ["epochs", "batch_size", "learning_rate", "mixup_alpha", "mixup_ratio", "random_seed", "vae_epochs", "vae_sharp", "vae_h_dim1", "vae_h_dim2", "vae_z_dim", "vae_lat_opt_steps", "augment"],
+    "mixup_gan": ["epochs", "batch_size", "learning_rate", "mixup_alpha", "mixup_ratio", "random_seed", "momentum", "optim", "weight_decay", "gamma","gan_z_dim","gan_lat_opt_steps","gan_epochs", "augment"],
 }
 
 DATASETS = ["mnist", "fashionmnist", "cifar10", "cifar100"]
 VARIANTS = ["standard", "mixup", "manifold_mixup", "mixup_vae", "mixup_gan"]
 OPTIMS = ["sgd", "adam"]
+AUGS = ["none", "cifar10"]
 
 parser = argparse.ArgumentParser(description="Experiment for the DeepLearning project")
 
@@ -61,7 +62,7 @@ parser.add_argument('--momentum', type=float, default=0.9, help="momentum for SG
 parser.add_argument('--weight_decay', type=float, default=1e-4, help="weight decay for SGD")
 parser.add_argument('--gamma', type=float, default=0.1, help="lr factor")
 parser.add_argument('--optim', choices=OPTIMS, default="sgd", help="optimizer")
-
+parser.add_argument('--augment', choices=AUGS, default="none", help="additional augmentation")
 args = parser.parse_args()
 
 
@@ -122,7 +123,7 @@ device = torch.device(device_name)
 
 # Load the datasets
 
-train_dataset, val_dataset, test_dataset = get_dataset(dataset_name)
+train_dataset, val_dataset, test_dataset = get_dataset(dataset_name, hyperparameters=relevant_hyperparameters)
 _, _, blurred_test_dataset = get_dataset(dataset_name, blur=True)
 
 # Create the loaders
@@ -406,7 +407,7 @@ elif variant == "mixup_gan":
         latent_train_loader = DataLoader(torch.utils.data.TensorDataset(latent_x, latent_y), batch_size=relevant_hyperparameters["batch_size"], shuffle=True)
         model = get_standard_model(dataset_name, device,args.pretrained).to(device)
         from sg3 import SG3Generator
-        gan_model = SG3Generator(checkpoint_path='/cluster/home/bgunders/dl_inversion_data/sg2c10-32.pkl').decoder.cuda()
+        gan_model = SG3Generator(checkpoint_path='/cluster/home/bgunders/dl_inversion_data/sg2c10-32.pkl').decoder.eval().cuda()
 
         #save a sample
         if display:

@@ -14,10 +14,36 @@ DATASETS_CALLS = {"mnist": datasets.MNIST, "fashionmnist": datasets.FashionMNIST
 DATASETS_TRAIN_SPLITS = {"mnist": [50000, 10000], "fashionmnist": [50000, 10000], "cifar10": [40000, 10000], "cifar100": [40000, 10000]}
 
 
-def get_dataset(dataset_name, blur=False):
+def get_dataset(dataset_name, hyperparameters=None, blur=False):
     transformations = [transforms.ToTensor()]
     if dataset_name.startswith("cifar"):
         transformations.append(transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)))
+        if hyperparameters is not None:
+            if hyperparameters["augment"] == "cifar10":
+                train_transforms = transforms.Compose(
+                    [
+                        transforms.AutoAugment(policy=transforms.AutoAugmentPolicy.CIFAR10),
+                        transforms.RandomHorizontalFlip(),
+                        transforms.ToTensor(),
+                        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+                        transforms.RandomCrop(size=(28, 28))
+                    ]
+                )
+
+                test_transforms = transforms.Compose(
+                    [
+                        transforms.ToTensor(),
+                        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+                        transforms.CenterCrop(size=(28, 28))
+                    ]
+                )
+
+                train = DATASETS_CALLS[dataset_name]('./data', train=True, download=True, transform=test_transforms)
+                _, val = torch.utils.data.random_split(train, DATASETS_TRAIN_SPLITS[dataset_name], generator=torch.Generator().manual_seed(42))
+                train = DATASETS_CALLS[dataset_name]('./data', train=True, download=True, transform=train_transforms)
+                train, _ = torch.utils.data.random_split(train, DATASETS_TRAIN_SPLITS[dataset_name], generator=torch.Generator().manual_seed(42))
+                test = DATASETS_CALLS[dataset_name]('./data', train=False, download=True, transform=test_transforms)
+                return train, val, test
     if blur:
         transformations.append(transforms.GaussianBlur(5, 5))
     train = DATASETS_CALLS[dataset_name]('./data', train=True, download=True, transform=transforms.Compose(transformations))

@@ -16,6 +16,8 @@ import matplotlib.image as mpimg
 from torchvision.utils import save_image
 import tqdm
 
+from torchvision import datasets, transforms
+from PIL import Image
 def gentr_fn(alist):
     while 1:
         for j in alist:
@@ -84,10 +86,39 @@ def train(model, device, image_train_loader, dataset_name, optimizer, hyperparam
             assert gan_model is not None, "No GAN model has been provided"
             inputs, targets_a, targets_b, lam = mixup_data(data, target, device=device, alpha=mixup_alpha)
             inputs, targets_a, targets_b = map(Variable, (inputs, targets_a, targets_b))
+
+            train_transforms = transforms.Compose(
+                [
+                    transforms.AutoAugment(policy=transforms.AutoAugmentPolicy.CIFAR10),
+                    transforms.RandomHorizontalFlip(),
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+                    transforms.RandomCrop(size=(28, 28))
+                ]
+            )
+
             if dataset_name == "cifar10":
-                inputs = gan_model.synthesis(inputs, noise_mode='const', force_fp32=True).to(device).view(inputs.shape[0], DATASET_IMAGE_CHN[dataset_name], DATASET_IMAGE_DIM[dataset_name], DATASET_IMAGE_DIM[dataset_name])
+                with torch.no_grad():
+                    inputs = gan_model.synthesis(inputs, noise_mode='const', force_fp32=True).to(device).view(inputs.shape[0], DATASET_IMAGE_CHN[dataset_name], DATASET_IMAGE_DIM[dataset_name], DATASET_IMAGE_DIM[dataset_name])
+
+                    if hyperparameters["augment"] == "cifar10":
+                        inputs = ((inputs + 1) / 2).cpu().transpose(1, 3).transpose(1, 2).numpy()
+                        inputs[inputs < 0] = 0
+                        inputs[inputs > 1] = 1
+                        inputs = inputs * 255
+
+                        new_inputs = torch.empty((inputs.shape[0], 3, 28, 28), dtype=torch.float32)
+
+                        for i, inp in enumerate(inputs):
+                            inp = train_transforms(Image.fromarray(inp.astype('uint8')))
+
+                            new_inputs[i, :, :, :] = inp
+                            
+
+                        inputs = new_inputs.cuda()
             else:
-                inputs = gan_model.generator(inputs)
+                with torch.no_grad():
+                    inputs = gan_model.generator(inputs)
 
             outputs = model(inputs)
             loss = mixup_criterion(criterion, outputs, targets_a, targets_b, lam)
