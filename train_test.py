@@ -13,6 +13,8 @@ from model import vae_loss_function,GAN
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
+from torchvision.utils import save_image
+import tqdm
 
 
 def train(model, device, image_train_loader, dataset_name, optimizer, hyperparameters, specificity="", mixup_alpha=1.0, mixup_ratio=1.0, vae_model=None,gan_model=None, latent_train_loader=None):
@@ -77,7 +79,10 @@ def train(model, device, image_train_loader, dataset_name, optimizer, hyperparam
             assert gan_model is not None, "No GAN model has been provided"
             inputs, targets_a, targets_b, lam = mixup_data(data, target, device=device, alpha=mixup_alpha)
             inputs, targets_a, targets_b = map(Variable, (inputs, targets_a, targets_b))
-            inputs = gan_model.synthesis(inputs, noise_mode='const', force_fp32=True).to(device).view(inputs.shape[0], DATASET_IMAGE_CHN[dataset_name], DATASET_IMAGE_DIM[dataset_name], DATASET_IMAGE_DIM[dataset_name])
+            if dataset_name == "cifar10":
+                inputs = gan_model.synthesis(inputs, noise_mode='const', force_fp32=True).to(device).view(inputs.shape[0], DATASET_IMAGE_CHN[dataset_name], DATASET_IMAGE_DIM[dataset_name], DATASET_IMAGE_DIM[dataset_name])
+            else:
+                inputs = gan_model.generator(inputs)
 
             outputs = model(inputs)
             loss = mixup_criterion(criterion, outputs, targets_a, targets_b, lam)
@@ -89,10 +94,10 @@ def train(model, device, image_train_loader, dataset_name, optimizer, hyperparam
             correct += (lam * predicted.eq(targets_a.data).cpu().sum() + (1 - lam) * predicted.eq(targets_b.data).cpu().sum())
         else:
             assert False, "Unknown specificity {}".format(specificity)
-        progress_bar(batch_idx, loader_size, 'Loss: %.3f | Acc: %.3f%% (%d/%d)' % (train_loss / total, 100. * correct / total, correct, total))
+        # progress_bar(batch_idx, loader_size, 'Loss: %.3f | Acc: %.3f%% (%d/%d)' % (train_loss / total, 100. * correct / total, correct, total))
 
 
-def evaluate(model, device, data_loader, verbose=True):
+def evaluate(model, device, data_loader, verbose=False):
     criterion = nn.CrossEntropyLoss()
     model.eval()
     loss = 0
@@ -113,7 +118,7 @@ def evaluate(model, device, data_loader, verbose=True):
 
 def full_training(model, image_train_loader, val_loader, dataset_name, hyperparameters, device, specificity="", mixup_alpha=1.0, mixup_ratio=1.0, vae_model=None,gan_model=None, latent_train_loader=None):
     if hyperparameters["optim"] == "sgd":
-        print("sgd")
+        print("using SGD")
         optimizer = optim.SGD(model.parameters(), lr=hyperparameters["learning_rate"], momentum=hyperparameters["momentum"], weight_decay=hyperparameters["weight_decay"])
         scheduler = ReduceLROnPlateau(optimizer, 'min', factor=hyperparameters["gamma"], patience=10)
     else:
@@ -125,7 +130,13 @@ def full_training(model, image_train_loader, val_loader, dataset_name, hyperpara
         train(model, device, image_train_loader, dataset_name, optimizer, hyperparameters, specificity=specificity, mixup_alpha=mixup_alpha, mixup_ratio=mixup_ratio, vae_model=vae_model,gan_model=gan_model, latent_train_loader=latent_train_loader)
         print("Evaluation on the validation set ...")
         acc, loss = evaluate(model, device, val_loader)
-        scheduler.step(loss)
+        print("Accuracy on the validation set: {}".format(acc))
+        if hyperparameters["optim"] == "sgd":
+            scheduler.step(loss)
+        else:
+            scheduler.step()
+
+        print("learning rate: ", optimizer.param_groups[0]['lr'])
         print("\n")
 
 
@@ -179,7 +190,7 @@ def gan_initializer_training(gan_initializer,gan:GAN):
     # generate batches of images with their corresponding latent vectors as the labels
     X = []
     y = []
-    sample_batches = 5000
+    sample_batches = 4000
     with torch.no_grad():
         for i in range(sample_batches):
             z = torch.randn(batch_size, gan.z_dim,1,1).cuda()
@@ -205,9 +216,9 @@ def gan_initializer_training(gan_initializer,gan:GAN):
     y = torch.from_numpy(y).float()
     gan_initializer.train()
     gan_initializer.cuda()
-    optimizer = optim.Adam(gan_initializer.parameters(), lr=0.001)
+    optimizer = optim.AdamW(gan_initializer.parameters(), lr=0.001)
     train_loader = DataLoader(torch.utils.data.TensorDataset(X,y), batch_size=batch_size, shuffle=True)
-    for epoch in range(5):
+    for epoch in range(6):
         for batch_idx, (data, target) in enumerate(train_loader):
             data, target = data.to(device), target.to(device)
             optimizer.zero_grad()
@@ -237,14 +248,95 @@ def feature_extractor_training(feature_extractor, train_loader):
 
 
 
-def full_gan_training(gan, train_loader, device, hyperparameters):
-    pass
-    # optimizer = optim.Adam(gan.parameters())
-    # for epoch in range(hyperparameters["gan_epochs"]):
-    #     print("Epoch {}/{}".format(epoch, hyperparameters["gan_epochs"]))
-    #     print("Training ...")
-    #     gan_train(gan, device, optimizer, train_loader)
-    #     print("\n")
+def full_gan_training(gan:GAN, train_loader, device, hyperparameters):
+    G = gan.generator.to(device)
+
+    D = gan.discriminator.to(device)
+
+    epochs = hyperparameters["gan_epochs"]
+    z_dim = hyperparameters["gan_z_dim"]
+
+    def weights_init(m):
+        classname = m.__class__.__name__
+        if classname.find('Conv2d') != -1:
+            nn.init.kaiming_normal_(m.weight.data, nonlinearity='leaky_relu')
+        elif classname.find('ConvTranspose2d') != -1:
+            nn.init.kaiming_normal_(m.weight.data, nonlinearity='leaky_relu')
+        elif classname.find('BatchNorm') != -1:
+            nn.init.normal_(m.weight.data, 1.0, 0.02)
+            nn.init.constant_(m.bias.data, 0)
+            
+    G = G.apply(weights_init)
+    D = D.apply(weights_init)
+
+    loss = nn.BCELoss()
+
+    G_opt = optim.AdamW(G.parameters(), lr=0.0003, betas=(0.5, 0.999))
+    D_opt = optim.AdamW(D.parameters(), lr=0.0003, betas=(0.5, 0.999))
+
+    def train_epoch(G_opt, D_opt, G, D, train):
+        
+        real_label = torch.tensor([1.0], device=device)
+        fake_label = torch.tensor([0.0], device=device)
+        
+        G.train()
+        D.train()
+        
+        dl = []
+        gl = []
+        
+        for i, (x, _) in enumerate(tqdm.tqdm(train,0)):
+            
+            x_real = x.to(device)
+            
+            D_opt.zero_grad(set_to_none=True)
+            
+            D_out_real = D(x_real).view(-1)
+            
+            y_real = real_label.repeat(D_out_real.shape[0],)
+            y_fake = fake_label.repeat(D_out_real.shape[0],)
+            
+            latent = torch.randn(D_out_real.shape[0], z_dim, 1, 1, device=device)
+            
+            
+            with torch.no_grad():
+                x_fake = G(latent)
+            
+            D_out_fake = D(x_fake).view(-1)
+            
+            D_real_loss = loss(D_out_real, y_real)
+            D_fake_loss = loss(D_out_fake, y_fake)
+            
+            D_loss = D_real_loss + D_fake_loss
+            D_loss.backward()
+            D_opt.step()
+            
+            G_opt.zero_grad(set_to_none=True)
+            
+            x_fake = G(latent)
+            D_out = D(x_fake).view(-1)
+            
+            G_loss = loss(D_out, y_real)
+            
+            G_loss.backward()
+            G_opt.step()
+            
+            dl.append(D_loss.item())
+            gl.append(G_loss.item())
+
+            
+        return np.mean(dl), np.mean(gl)
+
+
+    for epoch in range(epochs):
+        dl, gl = train_epoch(G_opt, D_opt, G, D, train_loader)
+        print(f"Epoch: {epoch}, D_loss: {dl}, G_loss: {gl}")
+        with torch.no_grad():
+            test_z = Variable(torch.randn(128, z_dim, 1, 1).to(device))
+            generated = G(test_z)
+            save_image(generated, './gan_sample_' + str(epoch) + '.png')
+
+
 
 
 

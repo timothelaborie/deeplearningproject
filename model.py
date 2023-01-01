@@ -26,31 +26,41 @@ def get_gan(z_dim):
     return GAN(z_dim=z_dim)
 
 
-def get_gan_initializer():
-    return GAN_initializer()
+def get_gan_initializer(z_dim):
+    return GAN_initializer(z_dim)
 
 class GAN_initializer(nn.Module):
-    def __init__(self):
+    def __init__(self, z_dim):
         super(GAN_initializer,self).__init__()
-        self.conv1 = nn.Conv2d(1, 16, 3, 1)
-        self.conv2 = nn.Conv2d(16, 32, 3, 1)
-        self.dropout = nn.Dropout(0.5)
-        self.fc1 = nn.Linear(9216 // 2, 128)
-        self.fc2 = nn.Linear(128, 1024)
+        # self.conv1 = nn.Conv2d(1, 16, 3, 1)
+        # self.conv2 = nn.Conv2d(16, 32, 3, 1)
+        # self.dropout = nn.Dropout(0.5)
+        # self.fc1 = nn.Linear(9216 // 2, 128)
+        # self.fc2 = nn.Linear(128, 1024)
+        self.model = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(28*28, 1024),
+            nn.ReLU(),
+            nn.Linear(1024, 1024),
+            nn.ReLU(),
+            nn.Linear(1024, z_dim),
+        )
+        self.z_dim = z_dim
 
     def forward(self, x):
-        x = self.conv1(x)
-        x = F.relu(x)
-        x = self.conv2(x)
-        x = F.relu(x)
-        x = F.max_pool2d(x, 2)
-        x = torch.flatten(x, 1)
-        x = self.fc1(x)
-        x = F.relu(x)
-        x = self.dropout(x)
-        x = self.fc2(x)
-        x = x.view(-1, 1024, 1, 1)
-        return x
+        # x = self.conv1(x)
+        # x = F.relu(x)
+        # x = self.conv2(x)
+        # x = F.relu(x)
+        # x = F.max_pool2d(x, 2)
+        # x = torch.flatten(x, 1)
+        # x = self.fc1(x)
+        # x = F.relu(x)
+        # x = self.dropout(x)
+        # x = self.fc2(x)
+        # x = x.view(-1, 1024, 1, 1)
+        # return x
+        return self.model(x).view(-1, self.z_dim, 1, 1)
 
 
 def get_feature_extractor():

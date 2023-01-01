@@ -10,9 +10,12 @@ import numpy as np
 import models
 from torch.utils.data import random_split
 from torch.utils.data.dataset import Subset
+from torchvision.utils import save_image
+from torch.autograd import Variable
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 
+display = False
 
 # Very important : check whether DeepFool is evaluated or not
 
@@ -236,14 +239,29 @@ elif variant == "mixup_gan":
             full_gan_training(gan_model, train_loader, device, relevant_hyperparameters)
             torch.save(gan_model.generator.state_dict(), gan_file_name)
 
+        if display:
+            with torch.no_grad():
+                test_z = Variable(torch.randn(128, 1024, 1, 1).to(device))
+                generated = gan_model.generator(test_z)
+                save_image(generated, './gan.png')
+
         # Generate the latent codes for each image of the training set or load the codes if possible
         if file_exists(gan_latent_code_file_name) and file_exists(gan_latent_labels_file_name):
             print("Latent codes of the training set are already stored")
             latent_x = np.load(gan_latent_code_file_name)
             latent_y = np.load(gan_latent_labels_file_name)
+
+            if display:
+                fig, ax = plt.subplots(3, 10, figsize=(10, 2))
+                for i in range(10):
+                    ax[0, i].imshow(gan_model.generator(torch.from_numpy(latent_x[i][None]).cuda()).cpu().detach().numpy()[0].transpose(1,2,0))
+                    ax[1, i].imshow(gan_model.generator(torch.from_numpy(latent_x[i + 10][None]).cuda()).cpu().detach().numpy()[0].transpose(1,2,0))
+                    ax[2, i].imshow(gan_model.generator(torch.from_numpy(latent_x[i + 20][None]).cuda()).cpu().detach().numpy()[0].transpose(1,2,0))
+                plt.show()
+
         else:
             print("Computing the latent codes of the training set")
-            gan_initializer = get_gan_initializer().cuda()
+            gan_initializer = get_gan_initializer(relevant_hyperparameters["gan_z_dim"]).cuda()
             feature_extractor = get_feature_extractor().cuda()
             if file_exists(gan_initializer_file_name):
                 print("gan_initializer model is already on disk")
@@ -263,22 +281,25 @@ elif variant == "mixup_gan":
 
 
             latent_x, latent_y = [], []
-            for batch_idx, (data, target) in enumerate(train_loader):
+            inversion_loader = DataLoader(train_dataset, batch_size=16, shuffle=False)
+            for batch_idx, (data, target) in enumerate(inversion_loader):
                 data, target = data.to(device), target.to(device)
                 latent_codes = gan_initializer(data)
+                # latent_codes = torch.randn(relevant_hyperparameters["batch_size"], gan_model.z_dim,1,1).cuda()
+                # latent_codes = torch.ones(relevant_hyperparameters["batch_size"], gan_model.z_dim,1,1).cuda()
                 new_images = gan_model.generator(latent_codes)
                 latent_codes = torch.from_numpy(latent_codes.cpu().detach().numpy()).float().to(device)
                 opt_latent_codes = latent_codes.clone().detach().requires_grad_(True)
                 # optimizer = optim.Adam([opt_latent_codes], lr=0.001)
                 optimizer = torch.optim.AdamW([opt_latent_codes], betas=(0.95, 0.999), lr=3e-2)
 
-                #plot the original images and the reconstructed images
-                # with torch.no_grad():
-                #     fig, ax = plt.subplots(2, 10, figsize=(10, 2))
-                #     for i in range(10):
-                #         ax[0][i].imshow(data[i].cpu().detach().numpy().transpose(1,2,0))
-                #         ax[1][i].imshow(gan_model.generator(opt_latent_codes)[i].cpu().detach().numpy().transpose(1,2,0))
-                #     plt.show()
+                # plot the original images, the initialized images and the reconstructed images
+                if display:
+                    fig, ax = plt.subplots(3, 10, figsize=(10, 2))
+                    with torch.no_grad():
+                        for i in range(10):
+                            ax[0][i].imshow(data[i].cpu().detach().numpy().transpose(1,2,0),cmap='Greys',  interpolation='nearest')
+                            ax[1][i].imshow(gan_model.generator(opt_latent_codes)[i].cpu().detach().numpy().transpose(1,2,0),cmap='Greys',  interpolation='nearest')
 
                 # Optimize the latent codes in order to reconstruct the image more precisely
                 for i in range(gan_latent_code_relevant_hyperparameters["gan_lat_opt_steps"]):
@@ -290,22 +311,19 @@ elif variant == "mixup_gan":
                     optimizer.step()
                 latent_x.append(opt_latent_codes.cpu().detach().numpy())
                 latent_y.append(target.cpu().detach().numpy())
-                progress_bar(batch_idx, len(train_loader), "Computing latent codes")
+                progress_bar(batch_idx, len(inversion_loader), "Computing latent codes, batch: " + str(batch_idx) + "/" + str(len(inversion_loader)))
 
-                # plot the original images and the reconstructed images
-                # with torch.no_grad():
-                #     fig, ax = plt.subplots(2, 10, figsize=(10, 2))
-                #     for i in range(10):
-                #         img1 = data[i].cpu().detach().numpy().transpose(1,2,0)
-                #         img2 = gan_model.generator(opt_latent_codes)[i].cpu().detach().numpy().transpose(1,2,0)
-                #         img2 += 1
-                #         img2 /= 2
-                #         ax[0][i].imshow(img1,cmap='Greys',  interpolation='nearest')
-                #         ax[1][i].imshow(img2,cmap='Greys',  interpolation='nearest')
-                #         print("img1.min()", img1.min(), "img1.max()", img1.max(), "img1.mean()", img1.mean(), "img1.std()", img1.std())
-                #         print("img2.min()", img2.min(), "img2.max()", img2.max(), "img2.mean()", img2.mean(), "img2.std()", img2.std())
-                #     plt.show()
-                # if batch_idx == 1:
+                if display:
+                    with torch.no_grad():
+                        for i in range(10):
+                            img1 = data[i].cpu().detach().numpy().transpose(1,2,0)
+                            img2 = gan_model.generator(opt_latent_codes)[i].cpu().detach().numpy().transpose(1,2,0)
+                            img2 += 1
+                            img2 /= 2
+                            ax[2][i].imshow(img2,cmap='Greys',  interpolation='nearest')
+                        plt.show()
+
+                # if batch_idx == 0:
                 #     break
 
             latent_x = np.concatenate(latent_x, axis=0)
@@ -321,7 +339,7 @@ elif variant == "mixup_gan":
 
         latent_x = torch.from_numpy(latent_x).float()
         latent_y = torch.from_numpy(latent_y).long()
-        assert False
+        # assert False
         latent_train_loader = DataLoader(torch.utils.data.TensorDataset(latent_x, latent_y), batch_size=relevant_hyperparameters["batch_size"], shuffle=True)
         model = get_standard_model(dataset_name, device,args.pretrained).to(device)
         # Train the model with the latent codes
@@ -337,40 +355,40 @@ elif variant == "mixup_gan":
 
         latent_x = torch.from_numpy(np.array(latent_x)).float()
         var1, var2 = random_split(latent_x, [40000, 10000], generator=torch.Generator().manual_seed(42))
-        var3:Subset = var1
-        latent_x = latent_x[var3.indices]
-        latent_y = torch.from_numpy(np.array(latent_y)[var3.indices])
+        latent_x = latent_x[var1.indices]
+        latent_y = torch.from_numpy(np.array(latent_y)[var1.indices])
         latent_y = latent_y.long()
         latent_train_loader = DataLoader(torch.utils.data.TensorDataset(latent_x, latent_y), batch_size=relevant_hyperparameters["batch_size"], shuffle=True)
         model = get_standard_model(dataset_name, device,args.pretrained).to(device)
         from sg3 import SG3Generator
         gan_model = SG3Generator(checkpoint_path='/cluster/home/bgunders/dl_inversion_data/sg2c10-32.pkl').decoder.cuda()
 
-        # #save a sample
-        # latent_it = iter(latent_train_loader)
-        # latent_data, latent_target = next(latent_it)
-        # inputs, targets_a, targets_b, lam = mixup_data(latent_data, latent_target, device=device, alpha=1.0)
-        # print(inputs.shape)
-        # inputs = inputs.cuda()
-        # imgs = gan_model.synthesis(inputs, noise_mode='const', force_fp32=True)
-        # imgs = imgs.cpu().detach().numpy()
-        # imgs = np.transpose(imgs, (0, 2, 3, 1))
-        # fig, ax = plt.subplots(1, 5, figsize=(20, 4))
-        # for i in range(5):
-        #     print(imgs[i].min(), imgs[i].max())
-        #     ax[i].imshow(imgs[i])
-        #     print("targets_a",targets_a[i], "targets_b",targets_b[i], "lam",lam)
-        # plt.savefig("sample1.png")
-        # #save a sample of the original
-        # it = iter(train_loader)
-        # data, target = next(it)
-        # imgs = data.cpu().detach().numpy()
-        # imgs = np.transpose(imgs, (0, 2, 3, 1))
-        # fig, ax = plt.subplots(1, 5, figsize=(20, 4))
-        # for i in range(5):
-        #     print(imgs[i].min(), imgs[i].max())
-        #     ax[i].imshow(imgs[i])
-        # plt.savefig("sample2.png")
+        #save a sample
+        if display:
+            latent_it = iter(latent_train_loader)
+            latent_data, latent_target = next(latent_it)
+            inputs, targets_a, targets_b, lam = mixup_data(latent_data, latent_target, device=device, alpha=1.0)
+            print(inputs.shape)
+            inputs = inputs.cuda()
+            imgs = gan_model.synthesis(inputs, noise_mode='const', force_fp32=True)
+            imgs = imgs.cpu().detach().numpy()
+            imgs = np.transpose(imgs, (0, 2, 3, 1))
+            fig, ax = plt.subplots(1, 5, figsize=(20, 4))
+            for i in range(5):
+                print(imgs[i].min(), imgs[i].max())
+                ax[i].imshow(imgs[i])
+                print("targets_a",targets_a[i], "targets_b",targets_b[i], "lam",lam)
+            plt.savefig("sample1.png")
+            #save a sample of the original
+            it = iter(train_loader)
+            data, target = next(it)
+            imgs = data.cpu().detach().numpy()
+            imgs = np.transpose(imgs, (0, 2, 3, 1))
+            fig, ax = plt.subplots(1, 5, figsize=(20, 4))
+            for i in range(5):
+                print(imgs[i].min(), imgs[i].max())
+                ax[i].imshow(imgs[i])
+            plt.savefig("sample2.png")
 
 
         # Train the model with the latent codes
