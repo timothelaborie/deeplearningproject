@@ -339,8 +339,53 @@ elif variant == "mixup_gan":
 
         latent_x = torch.from_numpy(latent_x).float()
         latent_y = torch.from_numpy(latent_y).long()
-        # assert False
-        latent_train_loader = DataLoader(torch.utils.data.TensorDataset(latent_x, latent_y), batch_size=relevant_hyperparameters["batch_size"], shuffle=True)
+
+        print("latent_x.shape", latent_x.shape)
+        print("latent_y.shape", latent_y.shape)
+
+        # mse_list = []
+        # # filter out images so only the best half are used
+        print("filtering latent codes")
+        latent_x_filtered = []
+        latent_y_filtered = []
+        median = 0.9647171497344971
+        with torch.no_grad():
+            temp_loader = DataLoader(train_dataset, batch_size=1, shuffle=False)
+            i = 0
+            for (z,y,img) in zip(latent_x.cuda(),latent_y.cuda(), temp_loader):
+                # fig, ax = plt.subplots(2, 1, figsize=(10, 2))
+                img = img[0].cuda()
+                #check mse between img and generator(z)
+                recon = gan_model.generator(z.unsqueeze(0))
+                mse = F.mse_loss(img, recon)
+                if mse.item() < median:
+                    latent_x_filtered.append(z.cpu().detach().numpy())
+                    latent_y_filtered.append(y.cpu().detach().numpy())
+                # mse_list.append(mse.item())
+                # ax[0].imshow(img.cpu().detach().numpy()[0].transpose(1,2,0),cmap='Greys',  interpolation='nearest')
+                # ax[1].imshow(recon.cpu().detach().numpy()[0].transpose(1,2,0),cmap='Greys',  interpolation='nearest')
+                # plt.show()
+                i+=1
+                # if i == 100:
+                #     break
+
+
+        # mse_list = np.array(mse_list)
+        # mse_list = np.sort(mse_list)
+        # plt.plot(mse_list)
+        # plt.show()
+        # print("mse_list.min()", mse_list.min(), "mse_list.max()", mse_list.max(), "mse_list.mean()", mse_list.mean(), "mse_list.median()", np.median(mse_list))
+           
+
+        latent_x_filtered = torch.from_numpy(np.array(latent_x_filtered)).float()
+        latent_y_filtered = torch.from_numpy(np.array(latent_y_filtered)).long()
+
+        
+
+        print("latent_x_filtered.shape", latent_x_filtered.shape)
+        print("latent_y_filtered.shape", latent_y_filtered.shape)
+
+        latent_train_loader = DataLoader(torch.utils.data.TensorDataset(latent_x_filtered, latent_y_filtered), batch_size=relevant_hyperparameters["batch_size"], shuffle=True)
         model = get_standard_model(dataset_name, device,args.pretrained).to(device)
         # Train the model with the latent codes
         full_training(model, train_loader, val_loader, dataset_name, relevant_hyperparameters, device, specificity="mixup_gan", mixup_alpha=relevant_hyperparameters["mixup_alpha"], mixup_ratio=relevant_hyperparameters["mixup_ratio"], gan_model=gan_model, latent_train_loader=latent_train_loader)

@@ -16,6 +16,11 @@ import matplotlib.image as mpimg
 from torchvision.utils import save_image
 import tqdm
 
+def gentr_fn(alist):
+    while 1:
+        for j in alist:
+            yield j
+
 
 def train(model, device, image_train_loader, dataset_name, optimizer, hyperparameters, specificity="", mixup_alpha=1.0, mixup_ratio=1.0, vae_model=None,gan_model=None, latent_train_loader=None):
     criterion = nn.CrossEntropyLoss()
@@ -24,9 +29,9 @@ def train(model, device, image_train_loader, dataset_name, optimizer, hyperparam
     correct = 0
     total = 0
     loader_size = len(image_train_loader)
-    assert latent_train_loader is None or loader_size == len(latent_train_loader), "Loaders don't have the same size"
+    # assert latent_train_loader is None or loader_size == len(latent_train_loader), "Loaders don't have the same size"
     image_it = iter(image_train_loader)
-    latent_it = None if latent_train_loader is None else iter(latent_train_loader)
+    latent_it = None if latent_train_loader is None else gentr_fn(latent_train_loader)
     for batch_idx in range(loader_size):
         optimizer.zero_grad()
         image_data, image_target = next(image_it)
