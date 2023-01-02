@@ -24,8 +24,8 @@ RELEVANT_HYPERPARAMETER_NAMES = {
     "standard": ["epochs", "batch_size", "learning_rate", "random_seed", "momentum", "optim", "weight_decay", "gamma", "augment"],
     "mixup": ["epochs", "batch_size", "learning_rate", "mixup_alpha", "mixup_ratio", "random_seed", "momentum", "optim", "weight_decay", "gamma", "augment"],
     "manifold_mixup": ["epochs", "batch_size", "learning_rate", "mixup_alpha", "mixup_ratio", "random_seed", "momentum", "optim", "weight_decay", "gamma", "augment"],
-    "mixup_vae": ["epochs", "batch_size", "learning_rate", "mixup_alpha", "mixup_ratio", "random_seed", "vae_epochs", "vae_sharp", "vae_h_dim1", "vae_h_dim2", "vae_z_dim", "vae_lat_opt_steps", "augment"],
-    "mixup_gan": ["epochs", "batch_size", "learning_rate", "mixup_alpha", "mixup_ratio", "random_seed", "momentum", "optim", "weight_decay", "gamma","gan_z_dim","gan_lat_opt_steps","gan_epochs", "augment"],
+    "mixup_vae": ["epochs", "batch_size", "learning_rate", "mixup_alpha", "mixup_ratio", "random_seed", "momentum", "optim", "weight_decay", "gamma", "vae_epochs", "vae_sharp", "vae_h_dim1", "vae_h_dim2", "vae_z_dim", "vae_lat_opt_steps", "augment"],
+    "mixup_gan": ["epochs", "batch_size", "learning_rate", "mixup_alpha", "mixup_ratio", "random_seed", "momentum", "optim", "weight_decay", "gamma", "gan_z_dim", "gan_lat_opt_steps", "gan_epochs", "augment"],
 }
 
 DATASETS = ["mnist", "fashionmnist", "cifar10", "cifar100"]
@@ -199,7 +199,7 @@ elif variant == "mixup_vae":
         np.save(vae_latent_code_file_name, latent_x)
         np.save(vae_latent_labels_file_name, latent_y)
 
-    if False:
+    if True:
         data, target = next(iter(train_loader))
         flat_data = data.view(-1, vae_model.x_dim)
         latent_codes = vae_model.encoder(flat_data)[0]  # .cpu().detach().numpy()
