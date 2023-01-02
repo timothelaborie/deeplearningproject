@@ -1,3 +1,4 @@
+import math
 import random
 import torch
 import torch.nn as nn
@@ -14,7 +15,8 @@ def get_standard_model(dataset_name, device,pretrained=True):
     if dataset_name.endswith("mnist"):
         return MnistNet(device=device)
     else:  # dataset_name.startswith("cifar")
-        return CifarResNet(device=device, n_out=(10 if dataset_name.endswith("10") else 100), pretrained=pretrained)
+        # return CifarResNet(device=device, n_out=(10 if dataset_name.endswith("10") else 100), pretrained=pretrained)
+        return Vgg()
 
 
 def get_vae(dataset_name, h_dim1, h_dim2, z_dim):
@@ -659,3 +661,81 @@ class GAN(nn.Module):
         return self.generator(x)
 
     
+
+
+
+class Vgg(nn.Module):
+    def __init__(self, fc_layer=512, classes=10):
+        super(Vgg, self).__init__()
+        """ Initialize VGG simplified Module
+        Args: 
+            fc_layer: input feature number for the last fully MLP block
+            classes: number of image classes
+        """
+        self.fc_layer = fc_layer
+        self.classes = classes
+
+        self.conv_block1 = nn.Sequential(nn.Conv2d(3, 64, 3, padding=1), nn.ReLU(), nn.MaxPool2d(2, 2))
+        self.conv_block2 = nn.Sequential(nn.Conv2d(64, 128, 3, padding=1), nn.ReLU(), nn.MaxPool2d(2, 2))
+        self.conv_block3 = nn.Sequential(nn.Conv2d(128, 256, 3, padding=1), nn.ReLU(), nn.MaxPool2d(2, 2))
+        self.conv_block4 = nn.Sequential(nn.Conv2d(256, 512, 3, padding=1), nn.ReLU(), nn.MaxPool2d(2, 2))
+        self.conv_block5 = nn.Sequential(nn.Conv2d(512, 512, 3, padding=1), nn.ReLU(), nn.MaxPool2d(2, 2))
+        self.classifier = nn.Sequential(nn.Linear(512, 512), nn.ReLU(), nn.Dropout(), nn.Linear(512, 10))
+
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+                m.weight.data.normal_(0, math.sqrt(2. / n))
+                m.bias.data.zero_()
+
+
+    def forward(self, x, target=None, mixup_hidden=False, mixup_alpha=1.0, layer_mix=None):
+        """
+        :param x: input image batch tensor, [bs, 3, 32, 32]
+        :return: score: predicted score for each class (10 classes in total), [bs, 10]
+        """
+
+        if mixup_hidden:
+            if layer_mix is None:
+                layer_mix = random.randint(0, 4)
+            out = x
+
+            if layer_mix == 0:
+                out, y_a, y_b, lam = mixup_data(out, target, self.device, mixup_alpha)
+            out = self.conv_block1(out)
+
+            if layer_mix == 1:
+                out, y_a, y_b, lam = mixup_data(out, target, self.device, mixup_alpha)
+            out = self.conv_block2(out)
+
+            if layer_mix == 2:
+                out, y_a, y_b, lam = mixup_data(out, target, self.device, mixup_alpha)
+            out = self.conv_block3(out)
+
+            if layer_mix == 3:
+                out, y_a, y_b, lam = mixup_data(out, target, self.device, mixup_alpha)
+            out = self.conv_block4(out)
+
+            if layer_mix == 4:
+                out, y_a, y_b, lam = mixup_data(out, target, self.device, mixup_alpha)
+            out = self.conv_block5(out)
+
+            out = out.view(out.size(0), -1)
+            score = self.classifier(out)
+
+            return score, y_a, y_b, lam
+
+        else:
+            x = self.conv_block1(x)
+            x = self.conv_block2(x)
+            x = self.conv_block3(x)
+            x = self.conv_block4(x)
+            x = self.conv_block5(x)
+            # flatten
+            x = x.view(x.size(0), -1) 
+            score = self.classifier(x) 
+
+            return score
+
