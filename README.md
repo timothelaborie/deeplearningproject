@@ -8,7 +8,7 @@ To reproduce the results for standard, mixup and manifold mixup use a variation 
 python main.py --variant [standard | mixup | manifold_mixup] --dataset cifar10 --optim sgd --epochs 270 --batch_size 32 --learning_rate 0.1 --momentum 0.9 --weight_decay 0.0001 --gamma 0.1 --augment [none | cifar10] --random_seed [42 | 4711 | 314159]
 ```
 
-for example (standard, ciar10, 42):
+for example (standard, cifar10, 42):
 ```
 python main.py --variant standard --dataset cifar10 --optim sgd --epochs 270 --batch_size 32 --learning_rate 0.1 --momentum 0.9 --weight_decay 0.0001 --gamma 0.1 --augment cifar10 --random_seed 42
 ```
