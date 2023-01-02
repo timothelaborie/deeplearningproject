@@ -13,7 +13,7 @@ for example (standard, cifar10, 42):
 python main.py --variant standard --dataset cifar10 --optim sgd --epochs 270 --batch_size 32 --learning_rate 0.1 --momentum 0.9 --weight_decay 0.0001 --gamma 0.1 --augment cifar10 --random_seed 42
 ```
 
-## stylegan 2 mixup
+## stylegan 2 cifar10 gan mixup
 Setup:
 Make sure to place sg2c10-32.pkl and grad_latents_00000_50000.npy in the root folder of this project or change the following linex in main.py to point to these files.
 ```
