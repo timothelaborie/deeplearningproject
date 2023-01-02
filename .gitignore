@@ -4,7 +4,6 @@ augmented_datasets/**
 models/cifar10/*
 *.ipynb
 *.pyc
-
-
 grad_latents_00000_50000.npy
 sg2c10-32.pkl
+*.out
