@@ -5,6 +5,8 @@ import torch.nn.functional as F
 # from torchvision.models import resnet18, ResNet18_Weights
 import copy
 
+from torch.autograd import Variable
+
 from utils import mixup_data
 
 
@@ -12,14 +14,14 @@ def get_standard_model(dataset_name, device,pretrained=True):
     if dataset_name.endswith("mnist"):
         return MnistNet(device=device)
     else:  # dataset_name.startswith("cifar")
-        return CifarResNet(device=device, n_out=(10 if dataset_name.endswith("10") else 100),pretrained=pretrained)
+        return CifarResNet(device=device, n_out=(10 if dataset_name.endswith("10") else 100), pretrained=pretrained)
 
 
 def get_vae(dataset_name, h_dim1, h_dim2, z_dim):
     if dataset_name.endswith("mnist"):
-        return VAE(x_dim=28*28, h_dim1=h_dim1, h_dim2=h_dim2, z_dim=z_dim)
+        return MnistVAE(x_dim=28 * 28, h_dim1=h_dim1, h_dim2=h_dim2, z_dim=z_dim)
     else:  # dataset_name.startswith("cifar")
-        return VAE(x_dim=32*32*3, h_dim1=h_dim1, h_dim2=h_dim2, z_dim=z_dim)
+        return CifarVAE(image_size=32, channel_num=3, kernel_num=256, z_size=z_dim)
 
 
 def get_gan(z_dim):
@@ -29,9 +31,10 @@ def get_gan(z_dim):
 def get_gan_initializer(z_dim):
     return GAN_initializer(z_dim)
 
+
 class GAN_initializer(nn.Module):
     def __init__(self, z_dim):
-        super(GAN_initializer,self).__init__()
+        super(GAN_initializer, self).__init__()
         # self.conv1 = nn.Conv2d(1, 16, 3, 1)
         # self.conv2 = nn.Conv2d(16, 32, 3, 1)
         # self.dropout = nn.Dropout(0.5)
@@ -449,95 +452,10 @@ class MnistNet(nn.Module):
             # x = self.softmax(x)
             return x
 
-'''
-class CifarNet(nn.Module):
-    def __init__(self, device, n_out):
-        super(CifarNet, self).__init__()
-        self.device = device
-        self.conv_layer_1 = nn.Sequential(
-            nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, padding=1),
-            nn.BatchNorm2d(32),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-        )
-        self.conv_layer_2 = nn.Sequential(
-            nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, padding=1),
-            nn.BatchNorm2d(128),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-            nn.Dropout2d(p=0.05),
-        )
-        self.conv_layer_3 = nn.Sequential(
-            nn.Conv2d(in_channels=128, out_channels=256, kernel_size=3, padding=1),
-            nn.BatchNorm2d(256),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(in_channels=256, out_channels=256, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-        )
-        self.fc_layer_1 = nn.Sequential(
-            nn.Dropout(p=0.1),
-            nn.Linear(4096, 1024),
-            nn.ReLU(inplace=True),
-        )
-        self.fc_layer_2 = nn.Sequential(
-            nn.Linear(1024, 512),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=0.1),
-        )
-        self.fc_layer_3 = nn.Sequential(
-            nn.Linear(512, n_out)
-        )
 
-    def forward(self, x, target=None, mixup_hidden=False, mixup_alpha=1.0, layer_mix=None):
-        if mixup_hidden:
-            if layer_mix is None:
-                layer_mix = random.randint(0, 5)
-            out = x
-
-            if layer_mix == 0:
-                out, y_a, y_b, lam = mixup_data(out, target, self.device, mixup_alpha)
-            out = self.conv_layer_1(out)
-
-            if layer_mix == 1:
-                out, y_a, y_b, lam = mixup_data(out, target, self.device, mixup_alpha)
-            out = self.conv_layer_2(out)
-
-            if layer_mix == 2:
-                out, y_a, y_b, lam = mixup_data(out, target, self.device, mixup_alpha)
-            out = self.conv_layer_3(out)
-            out = out.view(out.size(0), -1)
-
-            if layer_mix == 3:
-                out, y_a, y_b, lam = mixup_data(out, target, self.device, mixup_alpha)
-            out = self.fc_layer_1(out)
-
-            if layer_mix == 4:
-                out, y_a, y_b, lam = mixup_data(out, target, self.device, mixup_alpha)
-            out = self.fc_layer_2(out)
-
-            if layer_mix == 5:
-                out, y_a, y_b, lam = mixup_data(out, target, self.device, mixup_alpha)
-            out = self.fc_layer_3(out)
-            return out, y_a, y_b, lam
-        else:
-            x = self.conv_layer_1(x)
-            x = self.conv_layer_2(x)
-            x = self.conv_layer_3(x)
-            x = x.view(x.size(0), -1)
-            x = self.fc_layer_1(x)
-            x = self.fc_layer_2(x)
-            x = self.fc_layer_3(x)
-            return x'''
-
-
-class VAE(nn.Module):
+class MnistVAE(nn.Module):
     def __init__(self, x_dim, h_dim1, h_dim2, z_dim):
-        super(VAE, self).__init__()
+        super(MnistVAE, self).__init__()
         self.x_dim = x_dim
         self.z_dim = z_dim
         # encoder part
@@ -576,6 +494,102 @@ def vae_loss_function(recon_x, x, mu, log_var, x_dim):
     bce = F.binary_cross_entropy(recon_x, x.view(-1, x_dim), reduction='sum')
     kld = -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp())
     return bce + kld
+
+
+class CifarVAE(nn.Module):
+    def __init__(self, image_size, channel_num, kernel_num, z_size):
+        # configurations
+        super().__init__()
+        self.x_dim = 32*32*3
+        self.image_size = image_size
+        self.channel_num = channel_num
+        self.kernel_num = kernel_num
+        self.z_size = z_size
+
+        # encoder
+        self.encoder_net = nn.Sequential(
+            self._conv(channel_num, kernel_num // 4),
+            self._conv(kernel_num // 4, kernel_num // 2),
+            self._conv(kernel_num // 2, kernel_num),
+        )
+
+        # encoded feature's size and volume
+        self.feature_size = image_size // 8
+        self.feature_volume = kernel_num * (self.feature_size ** 2)
+
+        # q
+        self.q_mean = self._linear(self.feature_volume, z_size, relu=True)
+        self.q_logvar = self._linear(self.feature_volume, z_size, relu=True)
+
+        # projection
+        self.project = self._linear(z_size, self.feature_volume, relu=True)
+
+        # decoder
+        self.decoder_net = nn.Sequential(
+            self._deconv(kernel_num, kernel_num // 2),
+            self._deconv(kernel_num // 2, kernel_num // 4),
+            self._deconv(kernel_num // 4, channel_num),
+            nn.Sigmoid()
+        )
+
+    def q(self, encoded):
+        unrolled = encoded.view(-1, self.feature_volume)
+        return self.q_mean(unrolled), self.q_logvar(unrolled)
+
+    def encoder(self, x):
+        if len(x.shape) == 2:
+            x = x.view(-1, 3, 32, 32)
+        encoded = self.encoder_net(x)
+        return self.q(encoded)  # mu, log_var
+
+    @staticmethod
+    def sampling(mu, log_var):
+        std = torch.exp(0.5 * log_var)
+        eps = torch.randn_like(std)
+        return eps.mul(std).add_(mu)  # return z sample
+
+    def decoder(self, z):
+        z_projected = self.project(z).view(
+            -1, self.kernel_num,
+            self.feature_size,
+            self.feature_size,
+        )
+        x_reconstructed = self.decoder_net(z_projected)
+        return x_reconstructed.view(-1, self.x_dim)
+
+    def forward(self, x):
+        mu, log_var = self.encoder(x)
+        z = self.sampling(mu, log_var)
+        return self.decoder(z), mu, log_var
+
+    @staticmethod
+    def _conv(channel_size, kernel_num):
+        return nn.Sequential(
+            nn.Conv2d(
+                channel_size, kernel_num,
+                kernel_size=4, stride=2, padding=1,
+            ),
+            nn.BatchNorm2d(kernel_num),
+            nn.ReLU(),
+        )
+
+    @staticmethod
+    def _deconv(channel_num, kernel_num):
+        return nn.Sequential(
+            nn.ConvTranspose2d(
+                channel_num, kernel_num,
+                kernel_size=4, stride=2, padding=1,
+            ),
+            nn.BatchNorm2d(kernel_num),
+            nn.ReLU(),
+        )
+
+    @staticmethod
+    def _linear(in_size, out_size, relu=True):
+        return nn.Sequential(
+            nn.Linear(in_size, out_size),
+            nn.ReLU(),
+        ) if relu else nn.Linear(in_size, out_size)
 
 
 class Generator(nn.Module):
