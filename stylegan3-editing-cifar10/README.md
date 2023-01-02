@@ -7,6 +7,11 @@ download the model from https://api.ngc.nvidia.com/v2/models/nvidia/research/sty
 
 if it doesnt work directly convert it using https://github.com/NVlabs/stylegan3/edit/main/legacy.py
 
+you might have to set pythonpath to the stylegan3-editing-cifar10 folder
+```
+PYTHONPATH=.../stylegan3-editing-cifar10
+```
+
 ## Train encoder
 ```
 stylegan3-editing-cifar10/inversion/scripts/train_restyle_psp.py \
@@ -42,7 +47,11 @@ python stylegan3-editing-cifar10/inversion/scripts/inference_iterative.py \
 ```
 
 ## improve images using gradient descent
-(edit the file directly if you want to only apply it on a subset):
+(edit the file directly if you want to only apply it on a subset) note that this will take a very long time:
+```
+stylegan3-editing-cifar10/inversion/scripts/gradient_invert.py
+```
+improve the latents even further:
 ```
 stylegan3-editing-cifar10/inversion/scripts/gradient_invert.py
 ```
