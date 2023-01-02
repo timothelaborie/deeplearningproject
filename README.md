@@ -1,4 +1,14 @@
 # reproduce our results
+It might be helpful to modify scripts/grid_search.py to generate start_search.sh to generate a run script to generate results on your machine.
+## environment
+stylegan3-editing-cifar10/environment/sg3_env.yaml contains the library dependencies.
+
+you can use miniconda
+```
+conda env create -f stylegan3-editing-cifar10/environment/sg3_env.yaml
+conda activate sg3e
+```
+
 ## standard, mixup, manifold mixup for cifar10
 
 To reproduce the results for standard, mixup and manifold mixup use a variation of the following command:
