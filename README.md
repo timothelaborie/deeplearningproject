@@ -1,5 +1,5 @@
 # reproduce our results
-## standard, mixup, manifold mixup
+## standard, mixup, manifold mixup for cifar10
 
 To reproduce the results for standard, mixup and manifold mixup use a variation of the following command:
 --variant can be changed to a value in [standard, mixup, manifold_mixup]
