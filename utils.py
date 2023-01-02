@@ -8,10 +8,17 @@ from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 import platform
 
+from torchvision.utils import save_image
+
 DATASET_IMAGE_DIM = {"mnist":  28, "fashionmnist": 28, "cifar10": 32, "cifar100": 32}
 DATASET_IMAGE_CHN = {"mnist":  1, "fashionmnist": 1, "cifar10": 3, "cifar100": 3}
 DATASETS_CALLS = {"mnist": datasets.MNIST, "fashionmnist": datasets.FashionMNIST, "cifar10": datasets.CIFAR10, "cifar100": datasets.CIFAR100}
 DATASETS_TRAIN_SPLITS = {"mnist": [50000, 10000], "fashionmnist": [50000, 10000], "cifar10": [40000, 10000], "cifar100": [40000, 10000]}
+
+
+def store_png_images(image_tensors, file_name, dataset_name):
+    data = image_tensors / 2 + 0.5 if dataset_name.startswith("cifar") else image_tensors
+    save_image(data.view(data.shape[0], DATASET_IMAGE_CHN[dataset_name], DATASET_IMAGE_DIM[dataset_name], DATASET_IMAGE_DIM[dataset_name]), file_name)
 
 
 def get_dataset(dataset_name, hyperparameters=None, blur=False):
