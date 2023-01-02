@@ -81,11 +81,11 @@ python stylegan3-editing-cifar10/inversion/scripts/inference_iterative.py \
 ### improve images using gradient descent
 (edit the file directly if you want to only apply it on a subset) note that this will take a very long time:
 ```
-stylegan3-editing-cifar10/inversion/scripts/gradient_invert.py
+python stylegan3-editing-cifar10/inversion/scripts/gradient_invert.py
 ```
 improve the latents even further:
 ```
-stylegan3-editing-cifar10/inversion/scripts/gradient_invert.py
+python stylegan3-editing-cifar10/inversion/scripts/gradient_invert.py
 ```
 
 # files
