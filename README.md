@@ -31,7 +31,7 @@ python3.9 main.py --variant mixup_gan --dataset cifar10 --optim sgd --epochs 270
 ```
 
 ## Retrieve stylegan2 cifar10 latents
-Warning: This will take a lot of computational time, but you can use our precomputed latent vectors (grad_latents_00000_50000.npy)
+Warning: This will take a lot of computational time (encoder will probably take more than 5 days on a 3090, gradient step takes 30 seconds per image on a 1080 ti, you can parallelize this by manually changing the start and end index in the gradient_invert.py file). You can use our precomputed latent vectors (grad_latents_00000_50000.npy)
 
 Download models:
 download the model from https://api.ngc.nvidia.com/v2/models/nvidia/research/stylegan2/versions/1/files/stylegan2-cifar10-32x32.pkl
