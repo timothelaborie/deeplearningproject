@@ -49,7 +49,7 @@ place it in stylegan3-editing-cifar10/pretrained_models/sg2c10-32.pkl
 
 if it doesnt work directly convert it using https://github.com/NVlabs/stylegan3/edit/main/legacy.py
 
-you might have to set pythonpath to the stylegan3-editing-cifar10 folder for the following inversion commands
+you might have to set pythonpath to the stylegan3-editing-cifar10 folder or set pwd to .../stylegan3-editing-cifar10 for the following inversion commands
 ```
 PYTHONPATH=.../stylegan3-editing-cifar10
 ```
