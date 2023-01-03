@@ -49,7 +49,7 @@ parser.add_argument('--learning_rate', type=float, default=0.1, help="learning r
 parser.add_argument('--mixup_alpha', type=float, default=1.0, help="parameter of the Beta distribution to sample lambda for mixup")
 parser.add_argument('--mixup_ratio', type=float, default=1.0, help="ratio of the mixed up data used to train the classifier, the rest is the standard dataset")
 parser.add_argument('--random_seed', type=int, default=0, help="random seed")
-parser.add_argument('--vae_epochs', type=int, default=8, help="total epochs to train the VAE")
+parser.add_argument('--vae_epochs', type=int, default=50, help="total epochs to train the VAE")
 parser.add_argument('--vae_sharp', type=int, default=1, help="sharpening coefficient for the output of the VAE")
 parser.add_argument('--vae_h_dim1', type=int, default=512, help="first hidden dimension of the VAE")
 parser.add_argument('--vae_h_dim2', type=int, default=512, help="second hidden dimension of the VAE")
@@ -201,6 +201,7 @@ elif variant == "mixup_vae":
 
     if True:
         data, target = next(iter(train_loader))
+        data, target = data.to(device), target.to(device)
         flat_data = data.view(-1, vae_model.x_dim)
         latent_codes = vae_model.encoder(flat_data)[0]  # .cpu().detach().numpy()
         new_images = vae_model.decoder(latent_codes)

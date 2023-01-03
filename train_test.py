@@ -213,9 +213,14 @@ def full_vae_training(vae, train_loader, val_loader, device, hyperparameters):
         print("Epoch {}/{}".format(epoch, hyperparameters["vae_epochs"]))
         print("Training ...")
         vae_train(vae, device, optimizer, train_loader)
-        print("Evaluation on the validation set ...")
-        vae_evaluate(vae, device, val_loader, verbose=True)
+        # print("Evaluation on the validation set ...")
+        # vae_evaluate(vae, device, val_loader, verbose=True)
         print("\n")
+        #save a sample of the generated images
+        with torch.no_grad():
+            sample = torch.randn(64, vae.z_dim).to(device)
+            sample = vae.decoder(sample).cpu()
+            save_image(sample.view(64, 1, 28, 28), 'vae_sample_' + str(epoch) + '.png')
 
 
 
