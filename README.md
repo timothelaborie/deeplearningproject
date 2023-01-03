@@ -156,7 +156,7 @@ each dataset has its own folder, containing a bunch of .npy files:
 contains the .pth files for all the trained models:
 - The GAN for the specified dataset
 - The visual feature extractor used to obtain GAN latent codes (not needed for CIFAR10)
-- The latent code initializer, used to obtain GAN latent codes faster
+- The latent code initializer, used to obtain GAN latent codes faster (not needed for CIFAR10)
 - The VAE
 
 ## stylegan3-editing-cifar10, dnnlib, torch_utils
