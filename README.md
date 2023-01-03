@@ -95,7 +95,27 @@ python stylegan3-editing-cifar10/inversion/scripts/gradient_invert.py
 ```
 improve the latents even further:
 ```
-python stylegan3-editing-cifar10/inversion/scripts/gradient_invert.py
+python stylegan3-editing-cifar10/inversion/scripts/gradient_invert_improve.py
+```
+you will have to manually adjust the paths in the file:
+```
+decoder_path = '/cluster/home/bgunders/dl_inversion_data/sg2c10-32.pkl'
+latents_path = '/cluster/home/bgunders/dl_inversion_data/grad_latents_00000_50000_0.025.npy'
+np.save(out_path + f'grad_latents_00000_50000_0.02.npy', l)
+```
+
+## statistics in latex table
+run multiple runs and then scripts/latex_stats.py will aggregat them for you
+adjust scripts/latex_stats.py paths to point to the results folder (root="..." in the script) and then run (you might have to  ```pip install pandas```)
+```
+python scripts/latex_stats.py
+``
+
+## plot mse between original and inversion
+
+adjust scripts/plots.py to point to the correct latent.npy, running the following command will generate a plot of mse between original and inverted images (you might have to  ```pip install pandas```)
+```
+python scripts/plots.py
 ```
 
 # reproduce our results on MNIST
