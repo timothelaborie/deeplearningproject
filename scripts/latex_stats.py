@@ -10,7 +10,7 @@ folders = [folder for folder in os.listdir(root) if os.path.isdir(folder)]
 
 print("\\begin{center}")
 print("\\begin{tabular}{ c c c c c c c c}")
-print("variant & augmentation & mean accuracy & std accuracy  & test loss & std deep fool & blurr acc & blurr std\\\\")
+print("variant & augmentation & mean accuracy & std accuracy  & test loss & std deep fool & blurred acc & blurred std\\\\")
 
 for folder in folders:
 
