@@ -93,7 +93,7 @@ python stylegan3-editing-cifar10/inversion/scripts/inference_iterative.py \
 ```
 python stylegan3-editing-cifar10/inversion/scripts/gradient_invert.py
 ```
-improve the latents even further:
+improve the latents even further (additional 4k steps on all mse(original, inversion) >= mse you decide by updating the script manually):
 ```
 python stylegan3-editing-cifar10/inversion/scripts/gradient_invert_improve.py
 ```
