@@ -101,11 +101,13 @@ python stylegan3-editing-cifar10/inversion/scripts/gradient_invert.py
 # reproduce our results on MNIST
 Since we trained the GAN ourselves, you can simply run:
 ```
+main.py --dataset mnist --variant mixup_gan --epochs 50 --mixup_ratio 1.0 --optim adam --learning_rate 0.001 --gamma 0.9 --gan_epochs 80
+```
+This will automatically train a GAN, the visual feature extractor, the latent code initializer, the latent codes, and the classifier. If the GAN and latent codes are already present, then only the classifier is trained.
+
+To train a normal classifier:
+```
 main.py --dataset mnist --epochs 50 --optim adam --learning_rate 0.001 --gamma 0.9
-```
-or to run the GAN-mixup:
-```
-main.py --dataset mnist --variant mixup_gan --epochs 50 --mixup_ratio 1.0 --optim adam --learning_rate 0.001 --gamma 0.9
 ```
 
 
