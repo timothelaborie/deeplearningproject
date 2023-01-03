@@ -111,9 +111,6 @@ main.py --dataset mnist --epochs 50 --optim adam --learning_rate 0.001 --gamma 0
 ```
 
 
-## standard, mixup, manifold mixup for cifar10
-
-
 # files
 
 ## main.py
