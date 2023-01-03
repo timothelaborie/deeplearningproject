@@ -1,3 +1,35 @@
+import pickle
+import sys
+sys.path.append(".")
+sys.path.append("..")
+
+import torch
+
+import numpy as np
+import os
+
+from sg3 import SG3Generator
+from PIL import Image
+import torch.nn.functional as F
+
+import torchvision.transforms as transforms
+
+import time
+
+import imageio
+
+import random
+
+import matplotlib.pyplot as plt
+
+def tensor2im(var: torch.tensor):
+    var = var.cpu().detach().transpose(0, 2).transpose(0, 1).numpy()
+    var = ((var + 1) / 2)
+    var[var < 0] = 0
+    var[var > 1] = 1
+    var = var * 255
+    return Image.fromarray(var.astype('uint8'))
+
 if __name__ == '__main__':
     device = 'cuda'
     decoder_path = 'pretrained_models/sg2c10-32.pkl'
