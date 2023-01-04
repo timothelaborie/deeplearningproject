@@ -35,7 +35,7 @@ To reproduce the results for gan_mixup for cifar10 use a variation of the folliw
 ```
 python3.9 main.py --variant mixup_gan --dataset cifar10 --optim sgd --epochs 270 --batch_size 32 --learning_rate 0.1 --momentum 0.9 --weight_decay 0.0001 --gamma 0.1 --augment [none | cifar10] --random_seed [42 | 4711 | 314159]
 ```
-for example (mixup_gan, ciar10, 42):
+for example (mixup_gan, cifar10, 42):
 ```
 python3.9 main.py --variant mixup_gan --dataset cifar10 --optim sgd --epochs 270 --batch_size 32 --learning_rate 0.1 --momentum 0.9 --weight_decay 0.0001 --gamma 0.1 --augment cifar10 --random_seed 42
 ```
