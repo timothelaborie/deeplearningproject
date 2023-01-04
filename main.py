@@ -393,7 +393,7 @@ elif variant == "mixup_gan":
         full_training(model, train_loader, val_loader, dataset_name, relevant_hyperparameters, device, specificity="mixup_gan", mixup_alpha=relevant_hyperparameters["mixup_alpha"], mixup_ratio=relevant_hyperparameters["mixup_ratio"], gan_model=gan_model, latent_train_loader=latent_train_loader)
 
     else:
-        latent = np.load("/cluster/home/bgunders/dl_inversion_data/grad_latents_00000_50000.npy", allow_pickle=True).item()
+        latent = np.load("./grad_latents_00000_50000.npy", allow_pickle=True).item()
         latent_x = []
         latent_y = []
         for (key,value) in latent.items():
@@ -408,7 +408,7 @@ elif variant == "mixup_gan":
         latent_train_loader = DataLoader(torch.utils.data.TensorDataset(latent_x, latent_y), batch_size=relevant_hyperparameters["batch_size"], shuffle=True)
         model = get_standard_model(dataset_name, device,args.pretrained).to(device)
         from sg3 import SG3Generator
-        gan_model = SG3Generator(checkpoint_path='/cluster/home/bgunders/dl_inversion_data/sg2c10-32.pkl').decoder.eval().cuda()
+        gan_model = SG3Generator(checkpoint_path='./sg2c10-32.pkl').decoder.eval().cuda()
 
         #save a sample
         if display:
