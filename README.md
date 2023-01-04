@@ -25,7 +25,7 @@ python main.py --variant standard --dataset cifar10 --optim sgd --epochs 270 --b
 
 ## stylegan 2 cifar10 gan mixup
 Setup:
-Make sure to place sg2c10-32.pkl and grad_latents_00000_50000.npy in the root folder of this project or change the following linex in main.py to point to these files.
+Make sure to place sg2c10-32.pkl and grad_latents_00000_50000.npy (or any other .npy file which containes the cifar 10 latents ) in the root folder of this project or change the following linex in main.py to point to these files.
 ```
 latent = np.load("/cluster/home/bgunders/dl_inversion_data/grad_latents_00000_50000.npy", allow_pickle=True).item()
 gan_model = SG3Generator(checkpoint_path='/cluster/home/bgunders/dl_inversion_data/sg2c10-32.pkl').decoder.eval().cuda()
