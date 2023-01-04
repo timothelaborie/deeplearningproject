@@ -120,6 +120,15 @@ def train(model, device, image_train_loader, dataset_name, optimizer, hyperparam
                 with torch.no_grad():
                     inputs = gan_model.generator(inputs)
 
+            
+            #plot interpolated images
+            # inputs, targets_a, targets_b, lam = mixup_data(data, target, device=device, alpha=1.0,lam=0.5)
+            # generated = gan_model.generator(inputs)
+            # save_image(generated, './gan_interp.png')
+            # for i in range(targets_a.shape[0]):
+            #     print("target_a: ", targets_a[i].item(), "target_b: ", targets_b[i].item())
+            # assert False
+
             outputs = model(inputs)
             loss = mixup_criterion(criterion, outputs, targets_a, targets_b, lam)
             loss.backward()
@@ -232,6 +241,7 @@ def gan_initializer_training(gan_initializer,gan:GAN):
     X = []
     y = []
     sample_batches = 4000
+    print("Generating samples ...")
     with torch.no_grad():
         for i in range(sample_batches):
             z = torch.randn(batch_size, gan.z_dim,1,1).cuda()
@@ -239,7 +249,8 @@ def gan_initializer_training(gan_initializer,gan:GAN):
             image = sample.view(batch_size, 1, 28, 28).cpu().numpy()
             X.append(image)
             y.append(z.cpu().numpy())
-            progress_bar(i, sample_batches, 'Generating samples ...')
+            
+            # progress_bar(i, sample_batches, 'Generating samples ...')
 
             #save a sample
             # image = np.transpose(image, (0, 2, 3, 1))
@@ -259,6 +270,7 @@ def gan_initializer_training(gan_initializer,gan:GAN):
     gan_initializer.cuda()
     optimizer = optim.AdamW(gan_initializer.parameters(), lr=0.001)
     train_loader = DataLoader(torch.utils.data.TensorDataset(X,y), batch_size=batch_size, shuffle=True)
+    print("Training the initializer ...")
     for epoch in range(6):
         for batch_idx, (data, target) in enumerate(train_loader):
             data, target = data.to(device), target.to(device)
@@ -267,7 +279,7 @@ def gan_initializer_training(gan_initializer,gan:GAN):
             loss = F2.mse_loss(output, target)
             loss.backward()
             optimizer.step()
-            progress_bar(batch_idx, len(train_loader), 'Loss: %.3f' % loss.item())
+            # progress_bar(batch_idx, len(train_loader), 'Loss: %.3f' % loss.item())
 
 
 

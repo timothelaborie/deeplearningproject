@@ -61,8 +61,9 @@ def get_dataset(dataset_name, hyperparameters=None, blur=False):
     return train, val, test
 
 
-def mixup_data(x, y, device, alpha=1.0):
-    lam = np.random.beta(alpha, alpha) if alpha > 0 else 1
+def mixup_data(x, y, device, alpha=1.0,lam=-1):
+    if lam == -1:
+        lam = np.random.beta(alpha, alpha) if alpha > 0 else 1
     batch_size = x.size()[0]
     index = torch.randperm(batch_size).to(device)
     mixed_x = lam * x + (1 - lam) * x[index, :]
