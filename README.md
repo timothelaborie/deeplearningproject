@@ -1,4 +1,4 @@
-# reproduce our results on CIFAR10
+# reproduce our results on CIFAR-10
 It might be helpful to modify scripts/grid_search.py to generate start_search.sh to generate a run script to generate results on your machine.
 ## environment
 stylegan3-editing-cifar10/environment/sg3_env.yaml contains the library dependencies.
@@ -9,7 +9,7 @@ conda env create -f stylegan3-editing-cifar10/environment/sg3_env.yaml
 conda activate sg3e
 ```
 
-## standard, mixup, manifold mixup for cifar10
+## standard, mixup, manifold mixup for CIFAR-10
 
 To reproduce the results for standard, mixup and manifold mixup use a variation of the following command:
 --variant can be changed to a value in [standard, mixup, manifold_mixup]
@@ -23,15 +23,15 @@ for example (standard, cifar10, 42):
 python main.py --variant standard --dataset cifar10 --optim sgd --epochs 270 --batch_size 32 --learning_rate 0.1 --momentum 0.9 --weight_decay 0.0001 --gamma 0.1 --augment cifar10 --random_seed 42
 ```
 
-## stylegan 2 cifar10 gan mixup
+## StyleGAN 2 CIFAR-10 gan mixup
 Setup:
-Make sure to place sg2c10-32.pkl and grad_latents_00000_50000.npy (or any other .npy file which containes the cifar 10 latents ) in the root folder of this project or change the following linex in main.py to point to these files.
+Make sure to place sg2c10-32.pkl and grad_latents_00000_50000.npy (or any other .npy file which containes the cifar 10 latents) in the root folder of this project or change the following lines in main.py to point to these files.
 ```
 latent = np.load("/cluster/home/bgunders/dl_inversion_data/grad_latents_00000_50000.npy", allow_pickle=True).item()
 gan_model = SG3Generator(checkpoint_path='/cluster/home/bgunders/dl_inversion_data/sg2c10-32.pkl').decoder.eval().cuda()
 ```
 
-To reproduce the results for gan_mixup for cifar10 use a variation of the folliwing command:
+To reproduce the results for gan_mixup for CIFAR-10 use a variation of the folliwing command:
 ```
 python3.9 main.py --variant mixup_gan --dataset cifar10 --optim sgd --epochs 270 --batch_size 32 --learning_rate 0.1 --momentum 0.9 --weight_decay 0.0001 --gamma 0.1 --augment [none | cifar10] --random_seed [42 | 4711 | 314159]
 ```
@@ -40,7 +40,7 @@ for example (mixup_gan, cifar10, 42):
 python3.9 main.py --variant mixup_gan --dataset cifar10 --optim sgd --epochs 270 --batch_size 32 --learning_rate 0.1 --momentum 0.9 --weight_decay 0.0001 --gamma 0.1 --augment cifar10 --random_seed 42
 ```
 
-## Retrieve stylegan2 cifar10 latents
+## Retrieve StyleGAN 2 CIFAR-10 latents
 Warning: This will take a lot of computational time (encoder will probably take more than 5 days on a 3090, gradient step takes 30 seconds per image on a 1080 ti, you can parallelize this by manually changing the start and end index in the gradient_invert.py file and running it multiple times). You can use our precomputed latent vectors (grad_latents_00000_50000.npy which are the optimized latent vectors using gradient descent with the latent vectors as target, grad_latents_00000_50000_0.025.npy which additionally improved all latents which resultsed in an mse >= 0.025 again but with 4000 steps, and grad_latents_00000_50000_0.02.npy which improved on grad_latents_00000_50000_0.025.npy again with mse >= 0.02 and 4000 steps)
 
 Download models:
