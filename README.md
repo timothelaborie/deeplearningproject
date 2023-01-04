@@ -1,4 +1,4 @@
-# reproduce our results on CIFAR-10
+# Reproduce our results on CIFAR-10
 It might be helpful to modify scripts/grid_search.py to generate start_search.sh to generate a run script to generate results on your machine.
 ## environment
 stylegan3-editing-cifar10/environment/sg3_env.yaml contains the library dependencies.
@@ -9,7 +9,7 @@ conda env create -f stylegan3-editing-cifar10/environment/sg3_env.yaml
 conda activate sg3e
 ```
 
-## standard, mixup, manifold mixup for CIFAR-10
+## Standard, mixup, manifold mixup for CIFAR-10
 
 To reproduce the results for standard, mixup and manifold mixup use a variation of the following command:
 --variant can be changed to a value in [standard, mixup, manifold_mixup]
@@ -77,7 +77,7 @@ python stylegan3-editing-cifar10/inversion/scripts/train_restyle_psp.py \
 --stylegan_weights stylegan3-editing-cifar10/pretrained_models/sg2c10-32.pkl
 ```
 
-### get latents from encoder:
+### Get latents from encoder:
 ```
 python stylegan3-editing-cifar10/inversion/scripts/inference_iterative.py \
 --output_path experiments/cifar10_psp/inference \
@@ -88,7 +88,7 @@ python stylegan3-editing-cifar10/inversion/scripts/inference_iterative.py \
 --n_iters_per_batch 3 \
 ```
 
-### improve images using gradient descent
+### Improve images using gradient descent
 (edit the file directly if you want to only apply it on a subset) note that this will take a very long time:
 ```
 python stylegan3-editing-cifar10/inversion/scripts/gradient_invert.py
@@ -104,7 +104,7 @@ latents_path = '/cluster/home/bgunders/dl_inversion_data/grad_latents_00000_5000
 np.save(out_path + f'grad_latents_00000_50000_0.02.npy', l)
 ```
 
-## statistics in latex table
+## Statistics in latex table
 run multiple runs and then scripts/latex_stats.py will aggregat them for you
 adjust scripts/latex_stats.py paths to point to the results folder (root="..." in the script) and then run (you might have to  ```pip install pandas```)
 ```
@@ -116,7 +116,7 @@ adjust scripts/plots.py to point to the correct latent.npy, running the followin
 python scripts/plots.py
 ```
 
-# reproduce our results on MNIST
+# Reproduce our results on MNIST
 Since we trained the GAN ourselves, you can simply run:
 ```
 main.py --dataset mnist --variant mixup_gan --epochs 50 --mixup_ratio 1.0 --optim adam --learning_rate 0.001 --gamma 0.9 --gan_epochs 80
@@ -129,7 +129,7 @@ main.py --dataset mnist --epochs 50 --optim adam --learning_rate 0.001 --gamma 0
 ```
 
 
-# files
+# Files
 
 ## main.py
 Contains the parser. Also used to load existing files to prepair the training process. Use this file to run experiments.
