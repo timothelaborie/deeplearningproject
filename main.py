@@ -17,8 +17,6 @@ import matplotlib.image as mpimg
 
 display = False
 
-# Very important : check whether DeepFool is evaluated or not
-
 # Hyperparameter that affect the training of the different variants
 RELEVANT_HYPERPARAMETER_NAMES = {
     "standard": ["epochs", "batch_size", "learning_rate", "random_seed", "momentum", "optim", "weight_decay", "gamma", "augment"],
@@ -109,11 +107,6 @@ report_file_name = "./results/{}/{}/{}.csv".format(dataset_name, variant, experi
 if file_exists(report_file_name):
     print("Experiment has already been executed")
     exit()
-
-'''
-Default values : 
-For MNIST : batch_size=16, learning_rate=0.001
-'''
 
 torch.manual_seed(relevant_hyperparameters["random_seed"])
 
@@ -241,6 +234,8 @@ elif variant == "mixup_gan":
             full_gan_training(gan_model, train_loader, device, relevant_hyperparameters)
             torch.save(gan_model.generator.state_dict(), gan_file_name)
 
+        # assert False
+
         if display:
             with torch.no_grad():
                 test_z = Variable(torch.randn(128, 1024, 1, 1).to(device))
@@ -287,12 +282,9 @@ elif variant == "mixup_gan":
             for batch_idx, (data, target) in enumerate(inversion_loader):
                 data, target = data.to(device), target.to(device)
                 latent_codes = gan_initializer(data)
-                # latent_codes = torch.randn(relevant_hyperparameters["batch_size"], gan_model.z_dim,1,1).to(device)
-                # latent_codes = torch.ones(relevant_hyperparameters["batch_size"], gan_model.z_dim,1,1).to(device)
                 new_images = gan_model.generator(latent_codes)
                 latent_codes = torch.from_numpy(latent_codes.cpu().detach().numpy()).float().to(device)
                 opt_latent_codes = latent_codes.clone().detach().requires_grad_(True)
-                # optimizer = optim.Adam([opt_latent_codes], lr=0.001)
                 optimizer = torch.optim.AdamW([opt_latent_codes], betas=(0.95, 0.999), lr=3e-2)
 
                 # plot the original images, the initialized images and the reconstructed images
@@ -307,8 +299,7 @@ elif variant == "mixup_gan":
                 for i in range(gan_latent_code_relevant_hyperparameters["gan_lat_opt_steps"]):
                     optimizer.zero_grad()
                     gen = gan_model.generator(opt_latent_codes)
-                    loss = F.mse_loss(feature_extractor.extract_features((gen+1)/2), feature_extractor.extract_features(data))
-                    # loss = F.mse_loss((gen+1)/2, data)
+                    loss = F.mse_loss(feature_extractor.extract_features(gen), feature_extractor.extract_features(data))
                     loss.backward()
                     optimizer.step()
                 latent_x.append(opt_latent_codes.cpu().detach().numpy())
@@ -320,8 +311,6 @@ elif variant == "mixup_gan":
                         for i in range(10):
                             img1 = data[i].cpu().detach().numpy().transpose(1,2,0)
                             img2 = gan_model.generator(opt_latent_codes)[i].cpu().detach().numpy().transpose(1,2,0)
-                            img2 += 1
-                            img2 /= 2
                             ax[2][i].imshow(img2,cmap='Greys',  interpolation='nearest')
                         plt.show()
 
@@ -355,7 +344,7 @@ elif variant == "mixup_gan":
             temp_loader = DataLoader(train_dataset, batch_size=1, shuffle=False)
             i = 0
             for (z,y,img) in zip(latent_x.to(device),latent_y.to(device), temp_loader):
-                # fig, ax = plt.subplots(2, 1, figsize=(10, 2))
+                
                 img = img[0].to(device)
                 #check mse between img and generator(z)
                 recon = gan_model.generator(z.unsqueeze(0))
@@ -364,9 +353,11 @@ elif variant == "mixup_gan":
                     latent_x_filtered.append(z.cpu().detach().numpy())
                     latent_y_filtered.append(y.cpu().detach().numpy())
                 mse_list.append(mse.item())
-                # ax[0].imshow(img.cpu().detach().numpy()[0].transpose(1,2,0),cmap='Greys',  interpolation='nearest')
-                # ax[1].imshow(recon.cpu().detach().numpy()[0].transpose(1,2,0),cmap='Greys',  interpolation='nearest')
-                # plt.show()
+                if display:
+                    fig, ax = plt.subplots(2, 1, figsize=(10, 2))
+                    ax[0].imshow(img.cpu().detach().numpy()[0].transpose(1,2,0),cmap='Greys',  interpolation='nearest')
+                    ax[1].imshow(recon.cpu().detach().numpy()[0].transpose(1,2,0),cmap='Greys',  interpolation='nearest')
+                    plt.show()
                 i+=1
                 # if i == 100:
                 #     break
