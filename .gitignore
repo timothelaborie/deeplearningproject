@@ -1,6 +1,8 @@
 data/**
 datasets/**
-augmented_datasets/**
+augmented_datasets/cifar10/**
+augmented_datasets/cifar100/**
+augmented_datasets/fashionmnist/**
 models/cifar10/*
 *.ipynb
 *.pyc
