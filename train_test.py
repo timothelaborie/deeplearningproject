@@ -338,7 +338,7 @@ def full_gan_training(gan:GAN, train_loader, device, hyperparameters):
         dl = []
         gl = []
         
-        for i, (x, _) in enumerate(tqdm.tqdm(train,0)):
+        for i, (x, _) in enumerate(train):
             
             x_real = x.to(device)
             
@@ -412,7 +412,7 @@ def score_report(model, device, val_loader, test_loader, blurred_test_loader):
 
 
 def deepfool_score(model, device, test_loader):
-    return 0  # This is only to speed up testing
+    # return 0  # This is only to speed up testing
     model.softmax = nn.Identity()
     # test the model on adversarial examples
     norms = []
