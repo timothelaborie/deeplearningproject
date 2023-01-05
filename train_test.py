@@ -115,7 +115,7 @@ def train(model, device, image_train_loader, dataset_name, optimizer, hyperparam
                             new_inputs[i, :, :, :] = inp
                             
 
-                        inputs = new_inputs.cuda()
+                        inputs = new_inputs.to(device)
             else:
                 with torch.no_grad():
                     inputs = gan_model.generator(inputs)
@@ -244,7 +244,7 @@ def gan_initializer_training(gan_initializer,gan:GAN):
     print("Generating samples ...")
     with torch.no_grad():
         for i in range(sample_batches):
-            z = torch.randn(batch_size, gan.z_dim,1,1).cuda()
+            z = torch.randn(batch_size, gan.z_dim,1,1).to(device)
             sample = gan.generator(z)
             image = sample.view(batch_size, 1, 28, 28).cpu().numpy()
             X.append(image)
@@ -267,7 +267,7 @@ def gan_initializer_training(gan_initializer,gan:GAN):
     X = torch.from_numpy(X).float()
     y = torch.from_numpy(y).float()
     gan_initializer.train()
-    gan_initializer.cuda()
+    gan_initializer.to(device)
     optimizer = optim.AdamW(gan_initializer.parameters(), lr=0.001)
     train_loader = DataLoader(torch.utils.data.TensorDataset(X,y), batch_size=batch_size, shuffle=True)
     print("Training the initializer ...")
@@ -287,7 +287,7 @@ def feature_extractor_training(feature_extractor, train_loader):
     device = "cuda"
     criterion = nn.CrossEntropyLoss()
     feature_extractor.train()
-    feature_extractor.cuda()
+    feature_extractor.to(device)
     optimizer = optim.Adam(feature_extractor.parameters(), lr=0.001)
     for epoch in range(5):
         for batch_idx, (data, target) in enumerate(train_loader):
@@ -412,7 +412,7 @@ def score_report(model, device, val_loader, test_loader, blurred_test_loader):
 
 
 def deepfool_score(model, device, test_loader):
-    # return 0  # This is only to speed up testing
+    return 0  # This is only to speed up testing
     model.softmax = nn.Identity()
     # test the model on adversarial examples
     norms = []

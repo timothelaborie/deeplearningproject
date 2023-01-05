@@ -256,15 +256,15 @@ elif variant == "mixup_gan":
             if display:
                 fig, ax = plt.subplots(3, 10, figsize=(10, 2))
                 for i in range(10):
-                    ax[0, i].imshow(gan_model.generator(torch.from_numpy(latent_x[i][None]).cuda()).cpu().detach().numpy()[0].transpose(1,2,0))
-                    ax[1, i].imshow(gan_model.generator(torch.from_numpy(latent_x[i + 10][None]).cuda()).cpu().detach().numpy()[0].transpose(1,2,0))
-                    ax[2, i].imshow(gan_model.generator(torch.from_numpy(latent_x[i + 20][None]).cuda()).cpu().detach().numpy()[0].transpose(1,2,0))
+                    ax[0, i].imshow(gan_model.generator(torch.from_numpy(latent_x[i][None]).to(device)).cpu().detach().numpy()[0].transpose(1,2,0))
+                    ax[1, i].imshow(gan_model.generator(torch.from_numpy(latent_x[i + 10][None]).to(device)).cpu().detach().numpy()[0].transpose(1,2,0))
+                    ax[2, i].imshow(gan_model.generator(torch.from_numpy(latent_x[i + 20][None]).to(device)).cpu().detach().numpy()[0].transpose(1,2,0))
                 plt.show()
 
         else:
             print("Computing the latent codes of the training set")
-            gan_initializer = get_gan_initializer(relevant_hyperparameters["gan_z_dim"]).cuda()
-            feature_extractor = get_feature_extractor().cuda()
+            gan_initializer = get_gan_initializer(relevant_hyperparameters["gan_z_dim"]).to(device)
+            feature_extractor = get_feature_extractor().to(device)
             if file_exists(gan_initializer_file_name):
                 print("gan_initializer model is already on disk")
                 gan_initializer.load_state_dict(torch.load(gan_initializer_file_name))
@@ -287,8 +287,8 @@ elif variant == "mixup_gan":
             for batch_idx, (data, target) in enumerate(inversion_loader):
                 data, target = data.to(device), target.to(device)
                 latent_codes = gan_initializer(data)
-                # latent_codes = torch.randn(relevant_hyperparameters["batch_size"], gan_model.z_dim,1,1).cuda()
-                # latent_codes = torch.ones(relevant_hyperparameters["batch_size"], gan_model.z_dim,1,1).cuda()
+                # latent_codes = torch.randn(relevant_hyperparameters["batch_size"], gan_model.z_dim,1,1).to(device)
+                # latent_codes = torch.ones(relevant_hyperparameters["batch_size"], gan_model.z_dim,1,1).to(device)
                 new_images = gan_model.generator(latent_codes)
                 latent_codes = torch.from_numpy(latent_codes.cpu().detach().numpy()).float().to(device)
                 opt_latent_codes = latent_codes.clone().detach().requires_grad_(True)
@@ -354,9 +354,9 @@ elif variant == "mixup_gan":
         with torch.no_grad():
             temp_loader = DataLoader(train_dataset, batch_size=1, shuffle=False)
             i = 0
-            for (z,y,img) in zip(latent_x.cuda(),latent_y.cuda(), temp_loader):
+            for (z,y,img) in zip(latent_x.to(device),latent_y.to(device), temp_loader):
                 # fig, ax = plt.subplots(2, 1, figsize=(10, 2))
-                img = img[0].cuda()
+                img = img[0].to(device)
                 #check mse between img and generator(z)
                 recon = gan_model.generator(z.unsqueeze(0))
                 mse = F.mse_loss(img, recon)
@@ -408,7 +408,7 @@ elif variant == "mixup_gan":
         latent_train_loader = DataLoader(torch.utils.data.TensorDataset(latent_x, latent_y), batch_size=relevant_hyperparameters["batch_size"], shuffle=True)
         model = get_standard_model(dataset_name, device,args.pretrained).to(device)
         from sg3 import SG3Generator
-        gan_model = SG3Generator(checkpoint_path='./sg2c10-32.pkl').decoder.eval().cuda()
+        gan_model = SG3Generator(checkpoint_path='./sg2c10-32.pkl').decoder.eval().to(device)
 
         #save a sample
         if display:
@@ -416,7 +416,7 @@ elif variant == "mixup_gan":
             latent_data, latent_target = next(latent_it)
             inputs, targets_a, targets_b, lam = mixup_data(latent_data, latent_target, device=device, alpha=1.0)
             print(inputs.shape)
-            inputs = inputs.cuda()
+            inputs = inputs.to(device)
             imgs = gan_model.synthesis(inputs, noise_mode='const', force_fp32=True)
             imgs = imgs.cpu().detach().numpy()
             imgs = np.transpose(imgs, (0, 2, 3, 1))
