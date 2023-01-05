@@ -15,6 +15,7 @@ from torch.autograd import Variable
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 
+# Display plots
 display = False
 
 # Hyperparameter that affect the training of the different variants

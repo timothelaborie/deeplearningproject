@@ -14,15 +14,15 @@ from utils import mixup_data
 def get_standard_model(dataset_name, device,pretrained=True):
     if dataset_name.endswith("mnist"):
         return MnistNet(device=device)
-    else:  # dataset_name.startswith("cifar")
-        # return CifarResNet(device=device, n_out=(10 if dataset_name.endswith("10") else 100), pretrained=pretrained)
-        return Vgg()
+    else:
+        return CifarResNet(device=device, n_out=(10 if dataset_name.endswith("10") else 100), pretrained=pretrained)
+        # return Vgg()
 
 
 def get_vae(dataset_name, h_dim1, h_dim2, z_dim):
     if dataset_name.endswith("mnist"):
         return MnistVAE(x_dim=28 * 28, h_dim1=h_dim1, h_dim2=h_dim2, z_dim=z_dim)
-    else:  # dataset_name.startswith("cifar")
+    else:
         return CifarVAE(image_size=32, channel_num=3, kernel_num=256, z_size=z_dim)
 
 
