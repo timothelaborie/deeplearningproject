@@ -112,7 +112,7 @@ adjust scripts/latex_stats.py paths to point to the results folder (root="..." i
 python scripts/latex_stats.py
 ```
 ## plot mse between original and inversion
-adjust scripts/plots.py to point to the correct latent.npy, running the following command will generate a plot of mse between original and inverted images (you might have to  ```pip install pandas```)
+adjust scripts/plots.py to point to the correct latent.npy, running the following command will generate a plot of mse between original and inverted images (you might have to  ```pip install matplotlib```)
 ```
 python scripts/plots.py
 ```
