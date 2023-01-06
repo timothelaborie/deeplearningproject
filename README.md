@@ -134,7 +134,7 @@ main.py --dataset mnist --variant manifold_mixup --epochs 50 --optim adam --lear
 # Reproduce our results on FashionMNIST
 We used the same setup as MNIST, except that the GAN was trained for only 85 epochs.
 ```
-main.py --dataset fashionmnist --variant mixup_gan --epochs 50 --gan_epochs 85 --mixup_ratio 1.0 --optim adam --learning_rate 0.001 --gamma 0.9
+main.py --dataset fashionmnist --variant mixup_gan --epochs 50 --gan_epochs 85 --mixup_ratio 0.5 --optim adam --learning_rate 0.001 --gamma 0.9
 main.py --dataset fashionmnist --epochs 50 --optim adam --learning_rate 0.001 --gamma 0.9
 main.py --dataset fashionmnist --variant mixup --epochs 50 --optim adam --learning_rate 0.001 --gamma 0.9
 main.py --dataset fashionmnist --variant manifold_mixup --epochs 50 --optim adam --learning_rate 0.001 --gamma 0.9
