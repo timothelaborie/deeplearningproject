@@ -124,9 +124,20 @@ main.py --dataset mnist --variant mixup_gan --epochs 50 --mixup_ratio 1.0 --opti
 ```
 This will automatically train a GAN, the visual feature extractor, the latent code initializer, the latent codes, and the classifier. If the GAN and latent codes are already present, then only the classifier is trained.
 
-To train a normal classifier:
+To train the other variants:
 ```
 main.py --dataset mnist --epochs 50 --optim adam --learning_rate 0.001 --gamma 0.9
+main.py --dataset mnist --variant mixup --epochs 50 --optim adam --learning_rate 0.001 --gamma 0.9
+main.py --dataset mnist --variant manifold_mixup --epochs 50 --optim adam --learning_rate 0.001 --gamma 0.9
+```
+
+# Reproduce our results on FashionMNIST
+We used the same setup as MNIST, except that the GAN was trained for only 85 epochs.
+```
+main.py --dataset fashionmnist --variant mixup_gan --epochs 50 --gan_epochs 85 --mixup_ratio 1.0 --optim adam --learning_rate 0.001 --gamma 0.9
+main.py --dataset fashionmnist --epochs 50 --optim adam --learning_rate 0.001 --gamma 0.9
+main.py --dataset fashionmnist --variant mixup --epochs 50 --optim adam --learning_rate 0.001 --gamma 0.9
+main.py --dataset fashionmnist --variant manifold_mixup --epochs 50 --optim adam --learning_rate 0.001 --gamma 0.9
 ```
 
 
