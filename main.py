@@ -340,7 +340,10 @@ elif variant == "mixup_gan":
         print("filtering latent codes")
         latent_x_filtered = []
         latent_y_filtered = []
-        median = 0.16574298590421677
+        if dataset_name.endswith("mnist"):
+            median = 0.16574298590421677
+        if dataset_name.endswith("fashionmnist"):
+            median = 0.1
         with torch.no_grad():
             temp_loader = DataLoader(train_dataset, batch_size=1, shuffle=False)
             i = 0
@@ -350,15 +353,21 @@ elif variant == "mixup_gan":
                 #check mse between img and generator(z)
                 recon = gan_model.generator(z.unsqueeze(0))
                 mse = F.mse_loss(img, recon)
+                mse_list.append(mse.item())
                 if mse.item() < median:
                     latent_x_filtered.append(z.cpu().detach().numpy())
                     latent_y_filtered.append(y.cpu().detach().numpy())
-                mse_list.append(mse.item())
-                if display:
-                    fig, ax = plt.subplots(2, 1, figsize=(10, 2))
-                    ax[0].imshow(img.cpu().detach().numpy()[0].transpose(1,2,0),cmap='Greys',  interpolation='nearest')
-                    ax[1].imshow(recon.cpu().detach().numpy()[0].transpose(1,2,0),cmap='Greys',  interpolation='nearest')
-                    plt.show()
+                
+                    if display:
+                        fig, ax = plt.subplots(2, 1, figsize=(10, 2))
+                        img+=1
+                        img/=2
+                        recon+=1
+                        recon/=2
+                        print(mse.item())
+                        ax[0].imshow(img.cpu().detach().numpy()[0].transpose(1,2,0),cmap='Greys',  interpolation='nearest')
+                        ax[1].imshow(recon.cpu().detach().numpy()[0].transpose(1,2,0),cmap='Greys',  interpolation='nearest')
+                        plt.show()
                 i+=1
                 # if i == 100:
                 #     break
