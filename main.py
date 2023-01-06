@@ -15,8 +15,6 @@ from torch.autograd import Variable
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 
-# Display plots
-display = False
 
 # Hyperparameter that affect the training of the different variants
 RELEVANT_HYPERPARAMETER_NAMES = {
@@ -38,6 +36,7 @@ parser = argparse.ArgumentParser(description="Experiment for the DeepLearning pr
 # Utility commands
 parser.add_argument('--download', '-d', action='store_true', help='only downloads the datasets')
 parser.add_argument('--results', '-r', action='store_true', help='show the results stored on disk')
+parser.add_argument('--display', '-di', action='store_true', help='display the plots')
 
 parser.add_argument('--dataset', choices=DATASETS, default="mnist", help="dataset to run the experiment on")
 parser.add_argument('--variant', choices=VARIANTS, default="standard", help="training and model variant used")
@@ -64,6 +63,10 @@ parser.add_argument('--optim', choices=OPTIMS, default="sgd", help="optimizer")
 parser.add_argument('--augment', choices=AUGS, default="none", help="additional augmentation")
 args = parser.parse_args()
 
+# Display plots
+display = False
+if args.display:
+    display = True
 
 if args.results:
     report_results()
@@ -193,7 +196,7 @@ elif variant == "mixup_vae":
         np.save(vae_latent_code_file_name, latent_x)
         np.save(vae_latent_labels_file_name, latent_y)
 
-    if True:
+    if display:
         data, target = next(iter(train_loader))
         data, target = data.to(device), target.to(device)
         flat_data = data.view(-1, vae_model.x_dim)
@@ -234,8 +237,6 @@ elif variant == "mixup_gan":
             print("Training the GAN model")
             full_gan_training(gan_model, train_loader, device, relevant_hyperparameters)
             torch.save(gan_model.generator.state_dict(), gan_file_name)
-
-        # assert False
 
         if display:
             with torch.no_grad():
@@ -280,6 +281,7 @@ elif variant == "mixup_gan":
 
             latent_x, latent_y = [], []
             inversion_loader = DataLoader(train_dataset, batch_size=16, shuffle=False)
+            # compute the latent codes for each image of the training set
             for batch_idx, (data, target) in enumerate(inversion_loader):
                 data, target = data.to(device), target.to(device)
                 latent_codes = gan_initializer(data)
@@ -336,7 +338,7 @@ elif variant == "mixup_gan":
         print("latent_y.shape", latent_y.shape)
 
         mse_list = []
-        # # filter out images so only the best half are used
+        # filter out images so only the best half are used
         print("filtering latent codes")
         latent_x_filtered = []
         latent_y_filtered = []
@@ -369,14 +371,13 @@ elif variant == "mixup_gan":
                         ax[1].imshow(recon.cpu().detach().numpy()[0].transpose(1,2,0),cmap='Greys',  interpolation='nearest')
                         plt.show()
                 i+=1
-                # if i == 100:
-                #     break
 
 
         mse_list = np.array(mse_list)
         mse_list = np.sort(mse_list)
-        # plt.plot(mse_list)
-        # plt.show()
+        if display:
+            plt.plot(mse_list)
+            plt.show()
         print("mse_list.min()", mse_list.min(), "mse_list.max()", mse_list.max(), "mse_list.mean()", mse_list.mean(), "mse_list.median()", np.median(mse_list))
            
 

@@ -185,7 +185,7 @@ def full_training(model, image_train_loader, val_loader, dataset_name, hyperpara
         print("\n")
 
 
-def vae_train(vae, device, optimizer, train_loader):
+def vae_train(vae, device, optimizer, train_loader, verbose=False):
     vae.train()
     train_loss = 0
     total = 0
@@ -198,10 +198,11 @@ def vae_train(vae, device, optimizer, train_loader):
         train_loss += loss.item()
         total += target.size(0)
         optimizer.step()
-        # progress_bar(batch_idx, len(train_loader), 'Loss: %.3f' % (train_loss / total))
+        if verbose:
+            progress_bar(batch_idx, len(train_loader), 'Loss: %.3f' % (train_loss / total))
 
 
-def vae_evaluate(vae, device, data_loader, verbose=True):
+def vae_evaluate(vae, device, data_loader, verbose=False):
     vae.eval()
     test_loss = 0
     total = 0
@@ -211,8 +212,8 @@ def vae_evaluate(vae, device, data_loader, verbose=True):
             recon, mu, log_var = vae(data)
             total += target.size(0)
             test_loss += vae_loss_function(recon, data, mu, log_var, vae.x_dim).item()
-            # if verbose:
-                # progress_bar(batch_idx, len(data_loader), 'Loss: %.3f' % (test_loss / total))
+            if verbose:
+                progress_bar(batch_idx, len(data_loader), 'Loss: %.3f' % (test_loss / total))
     return test_loss / total
 
 
@@ -221,9 +222,9 @@ def full_vae_training(vae, train_loader, val_loader, device, hyperparameters):
     for epoch in range(hyperparameters["vae_epochs"]):
         print("Epoch {}/{}".format(epoch, hyperparameters["vae_epochs"]))
         print("Training ...")
-        vae_train(vae, device, optimizer, train_loader)
-        # print("Evaluation on the validation set ...")
-        # vae_evaluate(vae, device, val_loader, verbose=True)
+        vae_train(vae, device, optimizer, train_loader, verbose=False)
+        print("Evaluation on the validation set ...")
+        vae_evaluate(vae, device, val_loader, verbose=False)
         print("\n")
         #save a sample of the generated images
         with torch.no_grad():
