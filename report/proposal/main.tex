@@ -1,0 +1,31 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage[backend=biber,style=alphabetic,sorting=ynt]{biblatex}
+
+\addbibresource{sample.bib}
+
+\title{\vspace{-3.8cm}Project proposal - Latent-Mixup : mixing latent variables to train robust classifiers\vspace{-1.8cm}}
+\date{}
+\begin{document}
+
+\maketitle
+
+\section{Motivation}
+Current Deep Neural Network can be very accurate on the training set and still miss-classify with high confidence samples that slightly differ from the samples seen during training \cite{ben2010theory}, are underrepresented in the training set \cite{dro-hashimoto}, or are adversarial \cite{adv-szegedy}. Recently, the \textsc{mixup} method has been proposed \cite{mixup1} and empirical evidence showed that classifiers trained with that method were more robust compared to models trained the standard way. The idea of \textsc{mixup} is to augment the dataset with new images that are convex combinations of two images from the dataset. The label associated with the new image is the convex combination of the labels of the two original images with the same mixing factor. Generalizing that idea lead to \textsc{Manifold Mixup} where the hidden representations (activation of intermediate layers) inside a neural network are mixed instead of the raw samples.
+
+Building on that idea our aim is to mix the latent codes of two samples that we got using a generative model such as a GAN \cite{gan} in order to generate new samples, the label associated with the new sample is again the convex combination of the original labels. More precisely we randomly sample two images of the training dataset and find the latent vectors for which the GAN's generator can reasonably reconstruct the initial images. We then mix the latent codes using a convex combination with some $\lambda \in [0,1]$, and use the GAN's generator to build an new image based on that mixed latent code.
+\vspace{-0.2cm}
+\section{Scope of the project}
+The goal of the project is to implement the idea described above. We will train or download GANs and find the latent vectors corresponding to samples using gradient descent with the visual features of the sample as the target, similar to the way it was done in \cite{latentVector} or \cite{ytLatentVector}. Another method to get the latent code faster is to initialize the search using a pre-trained model as described in \cite{ytLatentVector}. Using the newly generated latent vector we generate a new image using the generator of the GAN and assign it the mixed label. We then train a classifier using both the original dataset and the mixed samples with their corresponding labels. 
+
+In order to evaluate our method we will compare our training with : (i) the standard training (ii) \textsc{mixup} as in \cite{mixup1} (iii) \textsc{Manifold Mixup} as in \cite{mixup2} (iv) adversarial training techniques as presented in \cite{adv} and \cite{gat}.
+
+We will evaluate the classifiers trained with the different techniques based on their robustness to simple operations such as blurring as well as on the robustness scores given by some more advanced tools such as \textsc{DeepFool} \cite{deepFool}. We will also test how the methods affect the accuracy of the classifier.
+
+For practical reason we will train our model on the MNIST, Fashion-MNIST and CIFAR-10 datasets as these are relatively small. 
+
+If time permits we could also evaluate the training procedure using VAEs \cite{VAE} instead of GANs to see how the nature of the generative model affects the robustness of the trained classifier. 
+
+\printbibliography
+\end{document}
