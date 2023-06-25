@@ -1,3 +1,11 @@
+# LATENT-MIXUP: Mixing latent variables to train robust classifiers 
+
+Read the paper [here](https://github.com/timothelaborie/deeplearningproject/blob/main/report/Deep_Learning_Project_Report.pdf)
+
+
+
+
+
 # Reproduce our results on CIFAR-10
 It might be helpful to modify scripts/grid_search.py to generate start_search.sh to generate a run script to generate results on your machine.
 ## environment
